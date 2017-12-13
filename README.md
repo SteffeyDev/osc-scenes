@@ -2,7 +2,7 @@
 
 A lot of lighting, sound, and video control software supports the [OSC](http://opensoundcontrol.org/introduction-osc), so users can you tools like [TouchOSC](https://hexler.net/software/touchosc) or [OSCulator](https://osculator.net) to control a live production.  This scene controller listens for OSC input in the form `/scene/<scene-name>` and sends out a sequence of user-defined OSC commands to various endpoints so that lighting, sound, and video can be controlled with one command.
 
-## Getting Started
+## Intrudoction
 
 ### What is YAML?
 YAML is a human readable markdown language.  It serves the same purpose as XML and JSON, but is much easier to understand and use.  Check out [yaml.org](http://www.yaml.org) for more information.
@@ -14,15 +14,34 @@ OSC messages contain 2 parts:
 * Value: a float, integer, or string that is sent to the resource at the specified address
  - e.g. `3.6` or `5` or `This is a string value`
 
-### The `scenes.yaml` file
+## Getting Started
+
+### Installation & Setup
+
+1) Install `pyyaml` by running `pip3 install pyyaml`
+2) Install `pythonosc` by running `pip3 install pythonosc`
+3) Download the script by clicking the green `Clone or download` button, then select `Download ZIP`.  Unzip the the downloaded folder.
+4) Modify the included scenes.yaml file template to fit your needs.
+
+### Running the server
+
+Open a terminal and `cd` (change directory) into the unzipped folder, where `run_scenes.py` and `scenes.yaml` is.
+
+You can start the scene controller by running:
+`python3 run_scenes.py`
+
+And that's it! It will immediately start listening for packets and log each scene it receives.
+
+
+## The `scenes.yaml` file
 You create a scenes.yaml file with the following sections:
 
-#### Server
+### Server
 
 This is where you configure the OSC Server.  Options include:
 * `listen_port`:int - This if the port that the OSC Scene controller will listen on
 
-#### Endpoints
+### Endpoints
 
 This is a list of the other applications you would like to send OSC commands to.  Options for each item include:
 * `prefix`:string - What commands should be sent to this endpoint?
@@ -33,7 +52,7 @@ This is a list of the other applications you would like to send OSC commands to.
 * `valueType`:string - A value (either `float` or `int`) that defines how numbers should be sent to this device
   - Optional - Default is `float`
 
-#### Map
+### Map
 
 This is where things get fun.  In this section, you define the OSC commands that sould be sent for a given value in a scene.  Each command should be an OSC address and value, separated by a single space.
 
@@ -61,7 +80,7 @@ By mapping the values, it makes it very easy to create a large number of scene l
 
 This is a very basic example, for a more in-depth look into the types of maps available, see the *Advanced Mapping* section below
 
-#### Scenes
+### Scenes
 
 This is a list of scenes, each with the following options:
 * `name`:string - The descriptive display name of the scene
@@ -69,14 +88,8 @@ This is a list of scenes, each with the following options:
   - If you want to call this using `/scenes/scene1`, then the `key` would be `scene1`
 * The actual scene parameters, as defined in the map
 
-### Running the server
 
-You can start the scene controller by running:
-`python3 run_scenes.py`
-
-And that's it! As long as you have the `scenes.yaml` file in the same directory, it will immediately start listening for packets and log each scene it receives.
-
-### Sample `scenes.yaml` file
+## Sample `scenes.yaml` file
 Here is what a basic `scenes.yaml` file should look like:
 
 ```yaml
@@ -141,7 +154,7 @@ scenes:
 
 ## Advanced Mapping
 
-### Infinate levels
+### Infinite levels
 In the above example, the mapping only went 3/4 levels deep.  You can go as deep as needed, as long as the levels in your map match the levels in your scene
 
 ### List notation
