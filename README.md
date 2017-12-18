@@ -1,8 +1,8 @@
 # OSC Scene Controller
 
-A lot of lighting, sound, and video control software supports the [OSC](http://opensoundcontrol.org/introduction-osc), so users can you tools like [TouchOSC](https://hexler.net/software/touchosc) or [OSCulator](https://osculator.net) to control a live production.  This scene controller listens for OSC input in the form `/scene/<scene-name>` and sends out a sequence of user-defined OSC commands to various endpoints so that lighting, sound, and video can be controlled with one command.
+A lot of lighting, sound, and video control software supports the [OSC](http://opensoundcontrol.org/introduction-osc) protocol, so users can you tools like [TouchOSC](https://hexler.net/software/touchosc) or [OSCulator](https://osculator.net) to control a live production.  This scene controller listens for OSC input in the form `/scene/<scene-key>` and sends out a sequence of user-defined OSC commands to various endpoints so that lighting, sound, and video can be controlled with one command.  All configuration is through a YAML file that is provided by the user.
 
-## Intrudoction
+## Introduction
 
 ### What is YAML?
 YAML is a human readable markdown language.  It serves the same purpose as XML and JSON, but is much easier to understand and use.  Check out [yaml.org](http://www.yaml.org) for more information.
@@ -18,23 +18,24 @@ OSC messages contain 2 parts:
 
 ### Installation & Setup
 
+1) If needed, download and install the latest version of Python 3 from [python.org/downloads](https://www.python.org/downloads/)
 1) Install `pyyaml` by running `pip3 install pyyaml`
-2) Install `pythonosc` by running `pip3 install pythonosc`
+2) Install `pythonosc` by running `pip3 install python-osc`
 3) Download the script by clicking the green `Clone or download` button, then select `Download ZIP`.  Unzip the the downloaded folder.
 4) Modify the included scenes.yaml file template to fit your needs.
 
 ### Running the server
 
-Open a terminal and `cd` (change directory) into the unzipped folder, where `run_scenes.py` and `scenes.yaml` is.
+Open a terminal and `cd` (change directory) into the unzipped folder, where `run_scenes.py` and `scenes.yaml` is (e.g. `cd ~/Downloads/osc-scenes-master/`)
 
 You can start the scene controller by running:
 `python3 run_scenes.py`
 
-And that's it! It will immediately start listening for packets and log each scene it receives.
+And that's it! It will immediately start listening for packets and log each scene it receives. However, if you change the `scenes.yaml` file, you will have to end the current session (`Ctrl-c`) and start the script again so that it can re-process the configuration.
 
 
-## The `scenes.yaml` file
-You create a scenes.yaml file with the following sections:
+## The YAML Configuration File
+The scenes.yaml configuration file should contain the following sections:
 
 ### Server
 
@@ -75,7 +76,7 @@ video:
   ...
 ```
 
-Obviously, you would replace these fake OSC commands with the actual commands you want to be sent when the corresponsing key is set in a scene.
+In your actual `scenes.yaml`, you would replace these fake OSC commands with the actual commands you want to be sent when the corresponsing key is set in a scene.
 By mapping the values, it makes it very easy to create a large number of scene layouts in plain text, and not have to worry about copying around obscure OSC commands to every scene.
 
 This is a very basic example, for a more in-depth look into the types of maps available, see the *Advanced Mapping* section below
@@ -164,14 +165,12 @@ If a list is entirely ommited from a scene, no values will be sent for any of th
 
 If you want to send the `out` command for all values in the list, you can include `none` as the only value in the list.  In the above example, you could do the following:
 ```
-...
     spotlights:
       - none
-...
 ```
 
 ### Delayed sending
-You can send delay the sending of a command for a whole number of seconds after the scene command is received.  In the example above, we wanted the video to not transition until 1 second after the lights, so we put `transition: auto 1s` in the scene.  The `auto` corresponded to the value in the map, and the `1s` instructed it to send with a 1 second delay
+You can send delay the sending of a command for a whole number of seconds after the scene command is received.  In the example above, we wanted to delay sending of the video OSC command until 1 second after the lights, so we put `transition: auto 1s` in the scene.  The `auto` corresponded to the value in the map, and the `1s` instructed it to send with a 1 second delay.
 
 ### Sending variable numbers
 If you don't want to send a constant value every time a mapped command is used, you can use an `x`, and then specify the value in the scene.
@@ -179,11 +178,10 @@ If you don't want to send a constant value every time a mapped command is used, 
 For example, I can have the following map:
 ```yaml
 map:
-...
   cmd: /out/command x
 ...
 scenes:
-...
+  name: Example
   key: example
   cmd: 57
 ...

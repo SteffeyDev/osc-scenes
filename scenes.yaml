@@ -4,291 +4,47 @@ server:
 endpoints:
   -
     prefix: atem
-    ip: 127.0.0.1
-    port: 3333
+    ip: 10.0.0.2
+    port: 3456
     valueType: float
-  - 
-    prefix: sound # Send to OSCulator
-    ip: 127.0.0.1
-    port: 8000
-    valueType: float
-  - 
-    prefix: dmxis
+  -
+    prefix: sc
     ip: 127.0.0.1
     port: 8001
-    valueType: float
-  - 
-    prefix: scene # Broadcast to all devices
-    ip: 192.168.10.255
-    port: 9000
     valueType: int
 
 map:
-  lights:
-    color:
-      worship: /dmxis/preset/3 1
-      dim: /dmxis/preset/2 1
-      teaching: /dmxis/preset/4 1
-      none: /dmxis/preset/1 1
-    spots:
-      worship:
-        in: /dmxis/preset/5 1
-        out: /dmxis/preset/7 1
-      pulpit:
-        in: /dmxis/preset/6 1
-        out: /dmxis/preset/8 1
-      steps:
-        in: /dmxis/preset/9 1
-        out: /dmxis/preset/10 1
   video:
     camera:
-      wide: /atem/preview/1 1
-      pulpit: /atem/preview/2 1
-      tripod: /atem/preview/7 1
-      computer: /atem/preview/4 1
-    keyers:
-      welcomedove:
-        in: /atem/dsk/set-next/1 1
-        out: /atem/dsk/set-next/1 0
-      fulldove:
-        in: /atem/dsk/set-next/2 1
-        out: /atem/dsk/set-next/2 0
-      lyrics:
-        in: /atem/set-nextusk/1 1
-        out: /atem/set-nextusk/1 0
+      wide: /atem/camera/7 1
+      close: /atem/camera/2 1
     transition:
-      auto: /atem/transition/auto 1
       cut: /atem/transition/cut 1
-    other:
-      ftb:
-        in: /atem/transition/ftb 1
-        out: /atem/transition/ftb 0
-  sound: /sound/program x
+      auto: /atem/transition/auto 1
+  lights:
+    color:
+      starting: /sc/btn/run/3/5/5 1
+      ending: /sc/btn/run/3/6/5 1
+    spotlights:
+      overhead: 
+        in: /sc/btn/2/2/4 1
+        out: /sc/btn/2/2/4 0
+      center:
+        in: /sc/btn/2/3/4 1
+        out: /sc/btn/2/3/4 0
 
 scenes:
   -
-    name: Before Service
-    key: before
-    lights:
-      color: dim
-      spots:
-        - none
+    name: Welcome
+    key: welcome
     video:
-      camera: wide
-      keyers:
-        - welcomedove
-      transition: auto 1s
-    sound: 1
+      camera: close
+      transition: cut
+    lights:
+      color: starting
+      spotlights:
+        - center
+        - overhead
   -
-    name: Leader Prayer
-    key: opening
-    lights:
-      color: worship
-      spots:
-        - worship
-    video:
-      camera: tripod
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 2
-  -
-    name: Worship
-    key: worship
-    lights:
-      color: worship
-      spots:
-        - worship
-    video:
-      camera: wide
-      keyers:
-        - lyrics
-      transition: auto 1s
-    sound: 3
-  -
-    name: Prayer & Announcements
-    key: prayer
-    lights:
-      color: worship
-      spots:
-        - worship
-        - pulpit
-    video:
-      camera: pulpit
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 4
-  -
-    name: Offering
-    key: offering
-    lights:
-      color: worship
-      spots:
-        - worship
-    video:
-      camera: wide
-      keyers:
-        - lyrics
-      transition: auto 1s
-    sound: 5
-  -
-    name: Scripture Reading
-    key: reading
-    lights:
-      color: worship
-      spots:
-        - worship
-        - pulpit
-    video:
-      camera: pulpit
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 6
-  -
-    name: Break
-    key: break
-    lights:
-      color: dim
-      spots:
-        - none
-    video:
-      camera: wide
-      keyers:
-        - fulldove
-      transition: auto
-    sound: 7
-  -
-    name: Singback
-    key: singback
-    lights:
-      color: worship
-      spots:
-        - worship
-    video:
-      camera: wide
-      keyers:
-        - lyrics
-      transition: auto 1s
-    sound: 8
-  -
-    name: Sermon
-    key: sermon
-    lights:
-      color: teaching 5s
-      spots:
-        - pulpit
-    video:
-      camera: pulpit
-      keyers:
-        - none
-      transition: auto
-    sound: 9
-  -
-    name: Sermon
-    key: sermonwide
-    lights:
-      color: teaching 5s
-      spots:
-        - pulpit
-    video:
-      camera: tripod
-      keyers:
-        - none
-      transition: auto
-    sound: 9
-  -
-    name: EOS Song
-    key: eos
-    lights:
-      color: worship
-      spots:
-        - worship
-        - pulpit
-    video:
-      camera: wide
-      keyers:
-        - lyrics
-      transition: auto 1s
-    sound: 10
-  -
-    name: Call to Action
-    key: cta
-    lights:
-      color: worship
-      spots:
-        - worship
-        - pulpit
-    video:
-      camera: pulpit
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 11
-  -
-    name: Closing Chorus
-    key: closing
-    lights:
-      color: worship
-      spots:
-        - worship
-    video:
-      camera: wide
-      keyers:
-        - lyrics
-      transition: auto 1s
-    sound: 12
-  -
-    name: Post Service
-    key: done
-    lights:
-      color: dim
-      spots:
-        - none
-    video:
-      camera: wide
-      keyers:
-        - fulldove
-      transition: auto 1s
-    sound: 13
-  -
-    name: Video
-    key: video
-    lights:
-      color: dim
-      spots:
-        - none
-    video:
-      camera: computer
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 20
-  -
-    name: Choir
-    key: choir
-    lights:
-      color: worship
-      spots:
-        - worship
-        - steps
-        - pulpit
-    video:
-      camera: wide
-      keyers:
-        - none
-      transition: auto 1s
-    sound: 21
-  - 
-    name: Blackout
-    key: blackout
-    lights:
-      color: none
-      spots:
-        - none
-    video: 
-      other:
-        - ftb
-    sound: 22
-
+    name: Main
+    key: main
