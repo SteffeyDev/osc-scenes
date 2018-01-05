@@ -53,7 +53,7 @@ print("\nInput Settings")
 print("Listening on 0.0.0.0:" + str(input_port))
 print("Listening for OSC commands in the form:")
 print("\t/scene/<key>")
-print("\t/sound-scene/<number>")
+print("\t/midi-scene/<number>")
 
 print("\nOutput Settings")
 udp_clients = {}
@@ -118,7 +118,7 @@ for scene in scenes:
 	arr = []
 
 	for key, value in scene.items():
-		if not (key == "key" or key == "name"):
+		if not (key == "key" or key == "name" or key == "midi"):
 			get_commands(key, value, mapping[key], arr)
 	
 	if debug:
@@ -126,8 +126,8 @@ for scene in scenes:
 		print(arr)
 		print()
 
-	if 'sound' in scene:
-		midi_map[scene['sound']] = scene['key']
+	if 'midi' in scene:
+		midi_map[scene['midi']] = scene['key']
 
 	scene_map[scene['key']] = arr
 
@@ -151,8 +151,8 @@ def respond_to_scene(addr, args):
 	new_scene = ""
 	if addr.split("/")[1] == "scene":
 		new_scene = addr.split("/")[2]
-	elif addr.split("/")[1] == "sound-scene":
-		new_scene = midi_map[int(addr.split("/")[2])]
+	elif addr.split("/")[1] == "midi-scene":
+		new_scene = midi_map[int(round(float(addr.split("/")[2]) * 127))]
 	else:
 		return
 
@@ -163,9 +163,8 @@ def respond_to_scene(addr, args):
 
 	print("\nGot Message: ", addr, " ", args)
 
-
 	### First we need to send message to turn on the new scene
-	send_msg(OSCMessage(addr + " 1"))
+	send_msg(OSCMessage("/scene/" + new_scene + " 1"))
 
 
 	### Then we need to send message to turn off current scene
@@ -196,7 +195,7 @@ dispatcher = dispatcher.Dispatcher()
 for key in scene_map:
 	dispatcher.map("/scene/" + key, respond_to_scene)
 for number in midi_map:
-	dispatcher.map("/sound-scene/" + str(number), respond_to_scene)
+	dispatcher.map("/midi-scene/" + str(round(number / 127, 2)), respond_to_scene)
 
 server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", input_port), dispatcher)
 server.serve_forever()
