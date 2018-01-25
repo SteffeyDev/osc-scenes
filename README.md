@@ -170,7 +170,7 @@ If you want to send the `out` command for all values in the list, you can includ
 ```
 
 ### Delayed sending
-You can send delay the sending of a command for a whole number of seconds after the scene command is received.  In the example above, we wanted to delay sending of the video OSC command until 1 second after the lights, so we put `transition: auto 1s` in the scene.  The `auto` corresponded to the value in the map, and the `1s` instructed it to send with a 1 second delay.
+You can send delay the sending of a command for a whole number of seconds after the scene command is received.  In the example above, we wanted to delay sending of the video OSC command until 1 second after the lights, so we put `transition: auto 1s` in the scene.  The `auto` corresponded to the value in the map, and the `1s` instructed it to send with a 1 second delay.  You can also delay the sending of all the values in a list by including a `- delay 1s` item anywhere in the list.  This will cause all of the `on`/`off` commands to be delayed by that many seconds.
 
 ### Sending variable numbers
 If you don't want to send a constant value every time a mapped command is used, you can use an `x`, and then specify the value in the scene.

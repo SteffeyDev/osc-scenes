@@ -1,4 +1,5 @@
 import yaml
+import sys
 from threading import Timer
 from pythonosc import osc_server, dispatcher, udp_client
 
@@ -82,15 +83,20 @@ def get_commands(key, value, map_value, array):
 			get_commands(_key, _value, map_value[_key], array)
 
 	elif isinstance(value, list):
+		delay = 0
+		for item in value:
+			if 'delay' in item:
+				delay = int(item.split(" ")[1].replace("s", ""))
+
 		for map_key, map_val in map_value.items():
 			if map_key in value and map_key != "none":
 				if map_key in map_value and 'in' in map_value[map_key] and is_osc_command(map_value[map_key]['in']):
-					array.append(OSCMessage(map_value[map_key]['in']))
+					array.append(OSCMessage(map_value[map_key]['in'], delay))
 				else:
 					print_error(key, value, map_value)
 			else:
 				if map_key in map_value and 'out' in map_value[map_key] and is_osc_command(map_value[map_key]['out']):
-					array.append(OSCMessage(map_value[map_key]['out']))
+					array.append(OSCMessage(map_value[map_key]['out'], delay))
 				else:
 					print_error(key, value, map_value)
 
@@ -174,7 +180,7 @@ def respond_to_scene(addr, args):
 		send_msg(OSCMessage("/scene/" + last_scene + " 0"))
 
 	# If we don't know what the last scene is, turn them all off
-	# 	except for the current scene
+	#		except for the current scene
 	else:
 		for key in scene_map:
 			if key != new_scene:
@@ -197,5 +203,9 @@ for key in scene_map:
 for number in midi_map:
 	dispatcher.map("/midi-scene/" + str(round(number / 127, 2)), respond_to_scene)
 
-server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", input_port), dispatcher)
-server.serve_forever()
+try:
+	server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", input_port), dispatcher)
+	server.serve_forever()
+except KeyboardInterrupt:
+	print("Exiting...")
+	sys.exit(0)
