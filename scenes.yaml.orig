@@ -12,11 +12,6 @@ endpoints:
     ip: 127.0.0.1
     port: 8001
     valueType: int
-  -
-    prefix: scene
-    ip: 127.0.0.1
-    port: 8400
-    valueType: int
 
 map:
   video:
@@ -53,6 +48,3 @@ scenes:
   -
     name: Main
     key: main
-  -
-    name: Worship
-    key: worship
