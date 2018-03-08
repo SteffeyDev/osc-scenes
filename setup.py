@@ -12,7 +12,7 @@ DATA_FILES = []
 OPTIONS = {
   'iconfile':'applet.icns',
   'plist': {
-    'CFBundleShortVersionString':'0.1.0',
+    'CFBundleShortVersionString':'0.1.1',
     'CFBundleDisplayName':'OSC Scene Controller'
   },
   'includes': 'tkinter'

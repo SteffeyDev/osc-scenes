@@ -16,7 +16,7 @@ OSC messages contain 2 parts:
 
 ## Getting Started
 
-1. Download the `OSCSceneController.app` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest), and double-click it to run.
+1. Download the `OSCSceneController.app.zip` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
 2. Create the YAML Configuration File by following the format described below
 3. Double-click the `OSCSceneController.app` file to run it, and load in your configuration
 

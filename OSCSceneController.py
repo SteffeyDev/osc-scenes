@@ -25,7 +25,9 @@ class OSCMessage:
     self._prefix = message.split("/")[1]
     self._addr = message.split(" ")[0]
     self._delay = delay
-    if value_types[self._prefix] == "float":
+    if self._prefix == "scene" or self._prefix not in value_types:
+      self._arg = int(message.split(" ")[1])
+    elif value_types[self._prefix] == "float":
       self._arg = float(message.split(" ")[1])
     elif value_types[self._prefix] == "int":
       self._arg = int(message.split(" ")[1])
@@ -170,6 +172,7 @@ class OSCSceneController():
     self.server = None
     self.last_scene = None
     self.running = False
+    self.output_client = None
 
   def start(self, input_port):
     if not self.running:
@@ -211,6 +214,7 @@ class OSCSceneController():
     elif addr.split("/")[1] == "midi-scene":
       new_scene = midi_map[int(round(float(addr.split("/")[2]) * 127))]
     else:
+      log_data.append("\nReceived invalid message: {0}".format(addr))
       return
 
     if new_scene not in scene_map:
@@ -226,24 +230,28 @@ class OSCSceneController():
     log_data.append("")
     log_data.append("Received: " + addr + " " + str(args))
 
-    ### First we need to send message to turn on the new scene
-    self.send_msg(OSCMessage("/scene/" + new_scene + " 1"))
+
+    # Only send outgoing messages if we know where to send them to
+    if self.output_client is not None:
+
+      ### First we need to send message to turn on the new scene
+      self.send_msg(OSCMessage("/scene/" + new_scene + " 1"))
 
 
-    ### Then we need to send message to turn off current scene
+      ### Then we need to send message to turn off current scene
 
-    # If we know what the last scene is, deselect it
-    if self.last_scene is not None:
-      self.send_msg(OSCMessage("/scene/" + self.last_scene + " 0"))
+      # If we know what the last scene is, deselect it
+      if self.last_scene is not None:
+        self.send_msg(OSCMessage("/scene/" + self.last_scene + " 0"))
 
-    # If we don't know what the last scene is, turn them all off
-    #   except for the current scene
-    else:
-      for key in scene_map:
-        if key != new_scene:
-          self.send_msg(OSCMessage("/scene/" + key +" 0"))
-        
-    self.last_scene = new_scene
+      # If we don't know what the last scene is, turn them all off
+      #   except for the current scene
+      else:
+        for key in scene_map:
+          if key != new_scene:
+            self.send_msg(OSCMessage("/scene/" + key +" 0"))
+          
+      self.last_scene = new_scene
 
     # Update GUI
     global active_scene
@@ -257,7 +265,8 @@ class OSCSceneController():
   def send_msg(self, message):
     if message.delay == 0:
       if message.prefix == "scene":
-        self.output_client.send_message(message.address, message.argument)
+        if self.output_client is not None:
+          self.output_client.send_message(message.address, message.argument)
       else:
         self.parser.getUdpClients()[message.prefix].send_message(message.address, message.argument)
       print("Sending message:", message.address, message.argument)
@@ -285,11 +294,10 @@ class MyApp(tk.Tk):
     self.output_port = None
     self.output_ip_address = None
 
-    self.minsize(450, 430)
-    self.configure(bg="#000000")
+    self.minsize(500, 430)
     menubar = tk.Menu(self)
     menubar.add_command(label="Quit", command=self.quit())
-    self.config(menu=menubar)
+    self.config(menu=menubar, background="white")
 
     self.build()
     self.deiconify()
@@ -302,17 +310,19 @@ class MyApp(tk.Tk):
       self.active_scene_text.set(active_scene)
 
     global log_data
-    log_data_store = log_data
-    log_data = []
-    self.log_text_box.configure(state='normal')
-    for item in log_data_store:
-      self.log_text_box.insert('end', item + '\n')
+    if len(log_data) > 0:
+      log_data_store = log_data
+      log_data = []
+      self.log_text_box.configure(state='normal')
+      for item in log_data_store:
+        self.log_text_box.insert('end', item + '\n')
       self.log_text_box.yview('end')
-    self.log_text_box.configure(state='disabled')
+      self.log_text_box.configure(state='disabled')
 
     self.after(1000, self.updateGUI)
     
   def reload_scene_handler(self):
+    self.focus()
     if (self.filename is not None):
       self.parser.parseFromFile(self.filename)
       self.log("Reloaded configuration from file: {0}".format(self.filename))
@@ -320,6 +330,7 @@ class MyApp(tk.Tk):
       self.log("Cannot reload, no configuration loaded")
 
   def load_from_file_handler(self):
+    self.focus()
     new_filename = filedialog.askopenfilename()
     if new_filename != "": # User did not click cancel button
       if new_filename.split(".")[-1] != "yaml" and new_filename.split(".")[-1] != "yml":
@@ -365,6 +376,7 @@ class MyApp(tk.Tk):
     self.log_text_box.configure(state='normal')
     self.log_text_box.insert('end', '\n' + text + '\n')
     self.log_text_box.configure(state='disabled')
+    self.log_text_box.yview('end')
 
   def input_port_changed(self, text):
     try:
@@ -414,8 +426,7 @@ class MyApp(tk.Tk):
     style=ttk.Style()
     style.theme_use('alt')
     style.configure("TLabel", background="white")
-    style.configure("Left.TFrame", background="white")
-    style.configure("Right.TFrame", background="white")
+    style.configure("TFrame", background="white")
     style.configure("TButton", relief="flat", background="lightgray")
     style.map("TButton",
       background=[('pressed', 'lightgray'), ('active', 'gray')],
@@ -432,7 +443,7 @@ class MyApp(tk.Tk):
 
     split = ttk.Frame(self)
 
-    left_side = ttk.Frame(split, width=250, height=400, borderwidth=5, style="Left.TFrame")
+    left_side = ttk.Frame(split, width=250, height=400, borderwidth=5)
 
     active_scene_box = tk.Frame(left_side, bg="white") #ttk.Frame(left_side, style="Left.TFrame")
     self.active_scene_text = tk.StringVar()
@@ -443,7 +454,7 @@ class MyApp(tk.Tk):
     active_scene_box.pack(pady=10)
     active_scene_box.config()
 
-    input_box = ttk.Frame(left_side, style="Left.TFrame")
+    input_box = ttk.Frame(left_side)
     self.input_port_text = tk.StringVar()
     listening_address_entry = ttk.Entry(input_box, width=5, textvariable=self.input_port_text, font=largeBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
     listening_address_entry.bind('<Return>', self.input_port_changed)
@@ -453,8 +464,8 @@ class MyApp(tk.Tk):
     ttk.Label(input_box, text="Listening Port").pack()
     input_box.pack(pady=15)
 
-    output_box = ttk.Frame(left_side, style="Left.TFrame")
-    output_address_box = ttk.Frame(output_box, style="Left.TFrame")
+    output_box = ttk.Frame(left_side)
+    output_address_box = ttk.Frame(output_box)
     self.output_ip_text = tk.StringVar()
     outgoing_ip_entry = ttk.Entry(output_address_box, width=13, textvariable=self.output_ip_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isIpAddressCommand)
     outgoing_ip_entry.bind('<Return>', self.output_ip_changed)
@@ -469,13 +480,13 @@ class MyApp(tk.Tk):
     ttk.Label(output_box, text="Outgoing Reply").pack()
     output_box.pack(pady=15)
 
-    scene_box = ttk.Frame(left_side, style="Left.TFrame")
+    scene_box = ttk.Frame(left_side)
     self.scene_file_text = tk.StringVar()
     self.scene_file_text.set("None")
     ttk.Label(scene_box, wraplength=210, font=mediumBoldFont, textvariable=self.scene_file_text).pack()
     self.generateLine(scene_box, 140)
     ttk.Label(scene_box, text="Loaded Configuration").pack()
-    scene_button_box = ttk.Frame(scene_box, style="Left.TFrame")
+    scene_button_box = ttk.Frame(scene_box)
     ttk.Button(scene_button_box, text='Reload', command=lambda: self.reload_scene_handler()).pack(side='left', padx=2)
     ttk.Button(scene_button_box, text='Load from File', command=lambda: self.load_from_file_handler()).pack(side='right', padx=2)
     scene_button_box.pack(pady=10)
@@ -485,7 +496,7 @@ class MyApp(tk.Tk):
     docLabel.bind("<Button-1>", self.open_documentation)
     docLabel.pack(side="bottom", anchor="s")
     
-    right_side = ttk.Frame(split, style="Right.TFrame")
+    right_side = ttk.Frame(split)
     self.log_text_box = ScrolledText(right_side, bg='lightgray', highlightthickness=10, highlightbackground='lightgray', wrap='word')
     self.log_text_box.pack(side="left", expand=1, fill="both", padx=(5,0))
     self.log_text_box.insert('insert', """
@@ -499,7 +510,7 @@ To start, load a configuration (a YAML file with the scenes in it).
 """)
     self.log_text_box.configure(state='disabled')
     
-    left_side.pack(side="left", fill="y")
+    left_side.pack(side="left", fill="y", padx=20)
     right_side.pack(side="right", fill="both", expand=1)
 
     split.grid(column=0, row=0, sticky='news')

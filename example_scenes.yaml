@@ -1,6 +1,3 @@
-server:
-  listen_port: 8002
-
 endpoints:
   -
     prefix: atem
@@ -39,7 +36,7 @@ scenes:
     key: welcome
     video:
       camera: close
-      transition: cut
+      transition: cut 1s
     lights:
       color: starting
       spotlights:
@@ -48,3 +45,11 @@ scenes:
   -
     name: Main
     key: main
+    video:
+      camera: wide
+      transition: auto 1s
+    lights:
+      color: ending
+      spotlights:
+        - center
+
