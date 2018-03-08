@@ -9,6 +9,7 @@ from tkinter import filedialog
 from tkinter import font
 from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
+import webbrowser
 
 debug = False
 
@@ -162,42 +163,42 @@ class SceneParser():
     return self.udp_clients
 
 
-#def trigger_atem_transition():
-# send_msg('/atem/transition/auto', 1)
-
 class OSCSceneController():
   def __init__(self, parser):
     self.parser = parser
-    self.dispatch = dispatcher.Dispatcher()
-    for key in parser.getSceneMap():
-      self.dispatch.map("/scene/" + key, self.respond_to_scene)
-    for number in parser.getMidiMap():
-      self.dispatch.map("/midi-scene/" + str(round(number / 127, 2)), self.respond_to_scene)
-
     self.server_thread = None
     self.server = None
-
     self.last_scene = None
-
+    self.running = False
 
   def start(self, input_port):
-    try:
-      self.server = osc_server.BlockingOSCUDPServer(("0.0.0.0", input_port), self.dispatch)
-      self.server_thread = Thread(target=self.server.serve_forever)
-      self.server_thread.start()
+    if not self.running:
+      try:
+        dispatch = dispatcher.Dispatcher()
+        for key in self.parser.getSceneMap():
+          dispatch.map("/scene/" + key, self.respond_to_scene)
+        for number in self.parser.getMidiMap():
+          dispatch.map("/midi-scene/" + str(round(number / 127, 2)), self.respond_to_scene)
 
-    except KeyboardInterrupt:
-      print("Exiting...")
-      sys.exit(0)
+        self.server = osc_server.BlockingOSCUDPServer(("0.0.0.0", input_port), dispatch)
+        self.server_thread = Thread(target=self.server.serve_forever)
+        self.server_thread.start()
+        self.running = True
+
+      except KeyboardInterrupt:
+        print("Exiting...")
+        sys.exit(0)
 
 
   def stop(self):
-    if (self.server_thread is not None and self.server is not None):
+    if (self.server_thread is not None and self.server is not None and self.running):
       self.server.shutdown()
       self.server_thread.join()
       self.server = None
       self.server_thread = None
 
+  def isRunning(self):
+    return self.running
 
   def respond_to_scene(self, addr, args = 1):
     scene_map = self.parser.getSceneMap()
@@ -255,7 +256,10 @@ class OSCSceneController():
 
   def send_msg(self, message):
     if message.delay == 0:
-      self.parser.getUdpClients()[message.prefix].send_message(message.address, message.argument)
+      if message.prefix == "scene":
+        self.output_client.send_message(message.address, message.argument)
+      else:
+        self.parser.getUdpClients()[message.prefix].send_message(message.address, message.argument)
       print("Sending message:", message.address, message.argument)
       log_data.append("Sending: " + message.address + " " + str(message.argument))
 
@@ -265,20 +269,31 @@ class OSCSceneController():
       r = Timer(wait, self.send_msg, [message])  
       r.start()
 
+  def setOutputAddress(self, ip, port):
+    self.output_client = udp_client.SimpleUDPClient(ip, port, allow_broadcast=True)
 
 
-class MyApp():
-  def __init__(self, name, app_id, icon=None):
-    self.filename = 'scenes.yaml'
+class MyApp(tk.Tk):
+  def __init__(self, *args, **kwargs):
+    tk.Tk.__init__(self, *args, **kwargs)
+    self.withdraw() #hide window
+
+    self.filename = None
     self.parser = SceneParser()
-    self.parser.parseFromFile(self.filename)
     self.controller = OSCSceneController(self.parser)
     self.log_data_len = None
+    self.output_port = None
+    self.output_ip_address = None
 
-    self.root = tk.Tk()
-    self.root.title(name)
-    self.root.minsize(450, 350)
-    self.root.configure(bg="#000000")
+    self.minsize(450, 430)
+    self.configure(bg="#000000")
+    menubar = tk.Menu(self)
+    menubar.add_command(label="Quit", command=self.quit())
+    self.config(menu=menubar)
+
+    self.build()
+    self.deiconify()
+    self.after(1000, self.updateGUI)
 
   def updateGUI(self):
 
@@ -295,33 +310,52 @@ class MyApp():
       self.log_text_box.yview('end')
     self.log_text_box.configure(state='disabled')
 
-    self.root.after(1000, self.updateGUI)
+    self.after(1000, self.updateGUI)
     
-  def main_loop(self):
-    self.controller.start(input_port=8002)
-    self.updateGUI()
-    self.root.mainloop()
-
   def reload_scene_handler(self):
-    self.parser.parseFromFile(self.filename)
-    self.log("Reloaded configuration from file: {0}".format(self.filename))
+    if (self.filename is not None):
+      self.parser.parseFromFile(self.filename)
+      self.log("Reloaded configuration from file: {0}".format(self.filename))
+    else:
+      self.log("Cannot reload, no configuration loaded")
 
   def load_from_file_handler(self):
     new_filename = filedialog.askopenfilename()
-    if new_filename.split(".")[-1] != "yaml":
-      messagebox.showerror("Invalid File", "Please select a YAML file with the extension .yaml")
-    else:
-      self.filename = new_filename
-      self.parser.parseFromFile(new_filename)
-      self.scene_file_text.set(new_filename.split("/")[-1])
-      self.log("Successfully loaded new configuration from file: {0}".format(new_filename))
+    if new_filename != "": # User did not click cancel button
+      if new_filename.split(".")[-1] != "yaml" and new_filename.split(".")[-1] != "yml":
+        messagebox.showerror("Invalid File", "Please select a Yaml configuration file with a '.yaml' extension.  Open the documentation for more information")
+      else:
+        self.filename = new_filename
+        self.parser.parseFromFile(new_filename)
+        self.scene_file_text.set(new_filename.split("/")[-1])
+        self.log("Successfully loaded new configuration from file: {0}".format(new_filename))
+        if not self.controller.isRunning():
+          self.controller.start(int(self.input_port_text.get()))
+          self.log("Server started, listening on all interfaces on port {0}...".format(self.input_port_text.get()))
 
-  def isPort(self, value_if_allowed, text, action, widgetName):
+  def isPort(self, value_if_allowed, text):
     if value_if_allowed == "":
       return True
     if text in '0123456789':
       try:
         return (int(value_if_allowed) < 65536)
+      except ValueError:
+        return False
+    else:
+      return False
+
+  def isIpAddress(self, value_if_allowed, text):
+    if value_if_allowed == "":
+      return True
+    if text in '0123456789.':
+      try:
+        parts = value_if_allowed.split('.')
+        if len(parts) > 4:
+          return False
+        for part in parts:
+          if part != "" and int(part) > 255:
+            return False
+        return True
       except ValueError:
         return False
     else:
@@ -336,10 +370,40 @@ class MyApp():
     try:
       self.controller.stop()
       self.controller.start(int(self.input_port_text.get()))
-      self.root.focus()
+      self.focus()
       self.log("Input port changed, now listening on port {0}".format(self.input_port_text.get()))
     except PermissionError:
       messagebox.showerror("Invalid Port", "It looks like that port is already in use or is reserved, try another one!")
+
+  def verifyIpAddress(self, text):
+    try:
+      parts = text.split('.')
+      for part in parts:
+        if int(part) > 255:
+          return False
+      return len(parts) == 4
+    except ValueError:
+      return False
+
+  def output_ip_changed(self, text):
+    if (self.verifyIpAddress(self.output_ip_text.get())):
+      self.output_ip_address = self.output_ip_text.get()
+      if self.output_port is not None:
+        self.controller.setOutputAddress(self.output_ip_address, self.output_port)
+        self.log("Output IP address changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
+      self.focus()
+    else:
+      messagebox.showerror("Invalid IP Address", "Please enter a valid IPv4 address")
+
+  def output_port_changed(self, text):
+    self.output_port = int(self.output_port_text.get())
+    self.focus()
+    if self.output_ip_address is not None:
+      self.controller.setOutputAddress(self.output_ip_address, self.output_port)
+      self.log("Output port changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
+
+  def open_documentation(self, extra):
+    webbrowser.open_new("https://github.com/SteffeyDev/osc-scenes/blob/master/README.md")
 
   def generateLine(self, rootComponent, width):
     canvas = tk.Canvas(rootComponent, width=width, height=3)
@@ -347,10 +411,8 @@ class MyApp():
     canvas.pack()
 
   def build(self):
-    print(ttk.Style().theme_use())
-    ttk.Style().theme_use('alt')
-
     style=ttk.Style()
+    style.theme_use('alt')
     style.configure("TLabel", background="white")
     style.configure("Left.TFrame", background="white")
     style.configure("Right.TFrame", background="white")
@@ -359,14 +421,16 @@ class MyApp():
       background=[('pressed', 'lightgray'), ('active', 'gray')],
       relief=[('pressed', 'flat'), ('active', 'flat')]
     )
+    style.configure("Link.TLabel", foreground="blue", cursor="hand2")
 
     largeBoldFont = font.Font(size=25, weight='bold')
     mediumBoldFont = font.Font(size=18, weight='bold')
     smallBoldFont = font.Font(size=13, weight='bold')
 
-    isPortCommand = (self.root.register(self.isPort), '%P', '%S', '%V', '%W')
+    isPortCommand = (self.register(self.isPort), '%P', '%S')
+    isIpAddressCommand = (self.register(self.isIpAddress), '%P', '%S')
 
-    split = ttk.Frame(self.root)
+    split = ttk.Frame(self)
 
     left_side = ttk.Frame(split, width=250, height=400, borderwidth=5, style="Left.TFrame")
 
@@ -381,7 +445,7 @@ class MyApp():
 
     input_box = ttk.Frame(left_side, style="Left.TFrame")
     self.input_port_text = tk.StringVar()
-    listening_address_entry = ttk.Entry(input_box, width=5,textvariable=self.input_port_text, font=largeBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
+    listening_address_entry = ttk.Entry(input_box, width=5, textvariable=self.input_port_text, font=largeBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
     listening_address_entry.bind('<Return>', self.input_port_changed)
     listening_address_entry.pack()
     self.input_port_text.set("8002")
@@ -389,17 +453,37 @@ class MyApp():
     ttk.Label(input_box, text="Listening Port").pack()
     input_box.pack(pady=15)
 
+    output_box = ttk.Frame(left_side, style="Left.TFrame")
+    output_address_box = ttk.Frame(output_box, style="Left.TFrame")
+    self.output_ip_text = tk.StringVar()
+    outgoing_ip_entry = ttk.Entry(output_address_box, width=13, textvariable=self.output_ip_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isIpAddressCommand)
+    outgoing_ip_entry.bind('<Return>', self.output_ip_changed)
+    outgoing_ip_entry.pack(side="left", padx=2)
+    ttk.Label(output_address_box, text=":", font=smallBoldFont).pack(side="left", pady=(0,6))
+    self.output_port_text = tk.StringVar()
+    outgoing_port_entry = ttk.Entry(output_address_box, width=5, textvariable=self.output_port_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
+    outgoing_port_entry.bind('<Return>', self.output_port_changed)
+    outgoing_port_entry.pack(side="right", padx=2)
+    output_address_box.pack()
+    self.generateLine(output_box, 130)
+    ttk.Label(output_box, text="Outgoing Reply").pack()
+    output_box.pack(pady=15)
+
     scene_box = ttk.Frame(left_side, style="Left.TFrame")
     self.scene_file_text = tk.StringVar()
-    self.scene_file_text.set(self.filename)
+    self.scene_file_text.set("None")
     ttk.Label(scene_box, wraplength=210, font=mediumBoldFont, textvariable=self.scene_file_text).pack()
     self.generateLine(scene_box, 140)
     ttk.Label(scene_box, text="Loaded Configuration").pack()
     scene_button_box = ttk.Frame(scene_box, style="Left.TFrame")
-    ttk.Button(scene_button_box, text='Reload Scene', command=lambda: self.reload_scene_handler()).pack(side='left', padx=2)
+    ttk.Button(scene_button_box, text='Reload', command=lambda: self.reload_scene_handler()).pack(side='left', padx=2)
     ttk.Button(scene_button_box, text='Load from File', command=lambda: self.load_from_file_handler()).pack(side='right', padx=2)
     scene_button_box.pack(pady=10)
     scene_box.pack(pady=15)
+
+    docLabel = ttk.Label(left_side, text="Open Documentation", style="Link.TLabel", cursor="hand2", font=font.Font(underline=1))
+    docLabel.bind("<Button-1>", self.open_documentation)
+    docLabel.pack(side="bottom", anchor="s")
     
     right_side = ttk.Frame(split, style="Right.TFrame")
     self.log_text_box = ScrolledText(right_side, bg='lightgray', highlightthickness=10, highlightbackground='lightgray', wrap='word')
@@ -407,22 +491,22 @@ class MyApp():
     self.log_text_box.insert('insert', """
 Welcome to the OSC Scene Controller!
         
-Send OSC messages in the form: /scene/<key> or /midi-scene/<number> to trigger a scene change.
+You can send me OSC messages in the form: /scene/<key> or /midi-scene/<number> to trigger a scene change.
 
 When I receive a scene message, I’ll automatically send out “/scene/<last_key> 0”, where <last_key> is the key of the previous current scene.  If you want to receive this, set the Outgoing Reply IP address and port.
 
-Listening on all interfaces on port {0}...
-""".format(self.input_port_text.get()))
+To start, load a configuration (a YAML file with the scenes in it).
+""")
     self.log_text_box.configure(state='disabled')
     
     left_side.pack(side="left", fill="y")
     right_side.pack(side="right", fill="both", expand=1)
 
     split.grid(column=0, row=0, sticky='news')
-    self.root.grid_columnconfigure(0, weight=1)
-    self.root.grid_rowconfigure(0, weight=1)
+    self.grid_columnconfigure(0, weight=1)
+    self.grid_rowconfigure(0, weight=1)
 
 if __name__ == "__main__":
-  app = MyApp("OSC Scene Controller", "com.peters.osc-scenes")
-  app.build()
-  app.main_loop()
+  app = MyApp()
+  app.title("OSC Scene Controller")
+  app.mainloop()

@@ -1,0 +1,8 @@
+altgraph==0.15
+macholib==1.9
+modulegraph==0.16
+py2app==0.13
+python-osc==1.6.4
+PyYAML==3.12
+rubicon-objc==0.2.10
+travertino==0.1.2

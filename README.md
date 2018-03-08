@@ -16,23 +16,9 @@ OSC messages contain 2 parts:
 
 ## Getting Started
 
-### Installation & Setup
-
-1) If needed, download and install the latest version of Python 3 from [python.org/downloads](https://www.python.org/downloads/)
-1) Install `pyyaml` by running `pip3 install pyyaml`
-2) Install `pythonosc` by running `pip3 install python-osc`
-3) Download the script by clicking the green `Clone or download` button, then select `Download ZIP`.  Unzip the the downloaded folder.
-4) Modify the included scenes.yaml file template to fit your needs.
-
-### Running the server
-
-Open a terminal and `cd` (change directory) into the unzipped folder, where `run_scenes.py` and `scenes.yaml` is (e.g. `cd ~/Downloads/osc-scenes-master/`)
-
-You can start the scene controller by running:
-`python3 run_scenes.py`
-
-And that's it! It will immediately start listening for packets and log each scene it receives. However, if you change the `scenes.yaml` file, you will have to end the current session (`Ctrl-c`) and start the script again so that it can re-process the configuration.
-
+1. Download the `OSCSceneController.app` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest), and double-click it to run.
+2. Create the YAML Configuration File by following the format described below
+3. Double-click the `OSCSceneController.app` file to run it, and load in your configuration
 
 ## The YAML Configuration File
 The scenes.yaml configuration file should contain the following sections:
@@ -187,3 +173,35 @@ scenes:
 ...
 ```
 When the `example` scene is called, `/out/command 57` will be sent to the endpoint with the `out` prefix.
+
+## Contributing
+
+### Setting up the environment
+
+```sh
+# Clone repository
+git clone https://github.com/SteffeyDev/osc-scenes.git
+cd osc-scenes
+
+# Setup virtual environment
+python3 -m pip install --user virtualenv
+python3 -m virtualenv env
+source env/bin/activate
+pip3 install -r requironments.pip
+```
+
+### Developing
+
+Modify the OSCSceneController.py file to fix issues or add new features
+Test your changes by running `python3 OSCSceneController.py`
+
+### Building New Executable
+
+Run the included `build_app` script to generate the new `OSCSceneController.app` file:
+```sh
+./build_app
+```
+
+### Submitting Pull Request
+
+Feel free to submit a pull request with your fix or feature!  I'll review it as soon as I can.
