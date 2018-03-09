@@ -186,7 +186,7 @@ cd osc-scenes
 # Setup virtual environment
 python3 -m pip install --user virtualenv
 python3 -m virtualenv env
-source env/bin/activate
+source env/bin/activate  # Might be /env/Scripts/activate on Windows
 pip3 install -r requironments.pip
 ```
 

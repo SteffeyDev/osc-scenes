@@ -23,7 +23,8 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=True,
-          console=False )
+          console=False,
+          icon='app_icon.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -33,7 +34,7 @@ coll = COLLECT(exe,
                name='OSCSceneController')
 app = BUNDLE(coll,
              name='OSCSceneController.app',
-             icon='applet.icns',
+             icon='app_icon.icns',
              bundle_identifier='com.peters.osc-scenes',
              info_plist={
                'NSHighResolutionCapable': 'True',

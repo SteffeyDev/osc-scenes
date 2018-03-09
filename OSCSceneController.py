@@ -1,5 +1,6 @@
 import yaml
 import sys
+import os
 from threading import Timer, Thread
 from pythonosc import osc_server, dispatcher, udp_client
 import asyncio
@@ -296,7 +297,8 @@ class MyApp(tk.Tk):
 
     self.minsize(500, 430)
     menubar = tk.Menu(self)
-    menubar.add_command(label="Quit", command=self.quit())
+    if (os.name != "nt"):
+      menubar.add_command(label="Quit", command=self.quit())
     self.config(menu=menubar, background="white")
 
     self.build()
@@ -421,8 +423,8 @@ class MyApp(tk.Tk):
     webbrowser.open_new("https://github.com/SteffeyDev/osc-scenes/blob/master/README.md")
 
   def generateLine(self, rootComponent, width):
-    canvas = tk.Canvas(rootComponent, width=width, height=3)
-    canvas.create_line(0, 4, width, 4, fill="gray")
+    canvas = tk.Canvas(rootComponent, width=width, height=4, bg="white", bd=0, highlightthickness=0)
+    canvas.create_line(0, 3, width, 3, fill="gray")
     canvas.pack()
 
   def build(self):
@@ -438,7 +440,7 @@ class MyApp(tk.Tk):
     style.configure("Link.TLabel", foreground="blue", cursor="hand2")
 
     largeBoldFont = font.Font(size=25, weight='bold')
-    mediumBoldFont = font.Font(size=18, weight='bold')
+    mediumBoldFont = font.Font(size=15, weight='bold')
     smallBoldFont = font.Font(size=13, weight='bold')
 
     isPortCommand = (self.register(self.isPort), '%P', '%S')
@@ -500,14 +502,14 @@ class MyApp(tk.Tk):
     docLabel.pack(side="bottom", anchor="s")
     
     right_side = ttk.Frame(split)
-    self.log_text_box = ScrolledText(right_side, bg='lightgray', highlightthickness=10, highlightbackground='lightgray', wrap='word')
+    self.log_text_box = ScrolledText(right_side, bg='lightgray', highlightthickness=10, highlightbackground='lightgray', highlightcolor='lightgray', borderwidth=0, wrap='word')
     self.log_text_box.pack(side="left", expand=1, fill="both", padx=(5,0))
     self.log_text_box.insert('insert', """
-Welcome to the OSC Scene Controller!
+Welcome to the OSC Packet Control.
         
-You can send me OSC messages in the form: /scene/<key> or /midi-scene/<number> to trigger a scene change.
+You can send OSC messages in the form: /scene/<key> or /midi-scene/<number> to trigger a scene change.
 
-When I receive a scene message, I’ll automatically send out “/scene/<last_key> 0”, where <last_key> is the key of the previous current scene.  If you want to receive this, set the Outgoing Reply IP address and port.
+Upon reciept of a message, I'll automatically retransmit and send out “/scene/<last_key> 0”, where <last_key> is the key of the previous current scene.  If you want to receive these messages, set the Outgoing Reply IP address and port.
 
 To start, load a configuration (a YAML file with the scenes in it).
 """)
