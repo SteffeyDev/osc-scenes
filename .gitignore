@@ -1,4 +1,6 @@
 dist
+.DS_Store
+__pycache__
 env
 build
 *.swp

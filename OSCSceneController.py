@@ -303,6 +303,9 @@ class MyApp(tk.Tk):
     self.deiconify()
     self.after(1000, self.updateGUI)
 
+  def stop(self):
+    self.controller.stop()
+
   def updateGUI(self):
 
     global active_scene
@@ -521,3 +524,4 @@ if __name__ == "__main__":
   app = MyApp()
   app.title("OSC Scene Controller")
   app.mainloop()
+  app.stop()

@@ -9,7 +9,7 @@ from setuptools import setup
 
 APP = ['OSCSceneController.py']
 DATA_FILES = []
-OPTIONS = {
+APP_OPTIONS = {
   'iconfile':'applet.icns',
   'plist': {
     'CFBundleShortVersionString':'0.1.1',
@@ -18,9 +18,22 @@ OPTIONS = {
   'includes': 'tkinter'
 }
 
+EXE_OPTIONS = {
+  'bundle_files': 1,
+  'compressed': True
+}
+
 setup(
     app=APP,
     data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
+    options={
+      'py2app': APP_OPTIONS,
+      'py2exe': EXE_OPTIONS
+    },
+    windows=[{
+      'script': "OSCSceneController.py",
+      'icon_resources': [(1, 'applet.icns')]
+    }],
+    zipfile=None,
     setup_requires=['py2app'],
 )
