@@ -301,6 +301,8 @@ class MyApp(tk.Tk):
       menubar.add_command(label="Quit", command=self.quit())
     self.config(menu=menubar, background="white")
 
+    self.iconbitmap('app_icon.ico')
+
     self.build()
     self.deiconify()
     self.after(1000, self.updateGUI)
