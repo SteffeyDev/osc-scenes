@@ -6,10 +6,10 @@ import shutil
 if os.path.exists('dist'):
   shutil.rmtree('dist')
 
-if (platform.system() == "Windows"):
+if (platform.system() == "Windows" or platform.system() == "Linux"):
   os.system('pyinstaller --onefile -w -i app_icon.ico OSCSceneController.py')
 
-if (platform.system() == "Darwin"): # MacOS
+elif (platform.system() == "Darwin"): # MacOS
   
   # Generate spec file
   os.system('pyi-makespec --onefile -w --osx-bundle-identifier com.peters.osc-scenes -i app_icon.icns OSCSceneController.py')
@@ -36,3 +36,4 @@ if (platform.system() == "Darwin"): # MacOS
   # Run from spec file
   os.system('pyinstaller OSCSceneController.spec')
             
+print("Success!")

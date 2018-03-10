@@ -297,7 +297,7 @@ class MyApp(tk.Tk):
 
     self.minsize(500, 430)
     menubar = tk.Menu(self)
-    if (os.name != "nt"):
+    if (sys.platform == "Darwin"):
       menubar.add_command(label="Quit", command=self.quit())
     self.config(menu=menubar, background="white")
 
