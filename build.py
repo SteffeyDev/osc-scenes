@@ -17,8 +17,11 @@ if (platform.system() == "Darwin"): # MacOS
             info_plist={
                'NSHighResolutionCapable': 'True',
                'CFBundleShortVersionString':'0.1.1',
+               'CFBundleVersion':'0.1.1',
                'CFBundleDisplayName':"OSC Scene Controller",
-               'CFBundleName':"OSC Scene Controller"
+               'CFBundleName':"OSC Scene Controller",
+               'CFBundleGetInfoString':"Scene Controller for OSC and MIDI devices",
+               'NSHumanReadableCopyright':"Copyright 2018, Peter Steffey, All Rights Reserved"
              },\n"""
 
   # Add custom options into spec file
