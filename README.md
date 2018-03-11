@@ -16,9 +16,29 @@ OSC messages contain 2 parts:
 
 ## Getting Started
 
+### MacOS
+
 1. Download the `OSCSceneController.app.zip` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
-2. Create the YAML Configuration File by following the format described below
-3. Double-click the `OSCSceneController.app` file to run it, and load in your configuration
+2. Create the YAML Configuration File by following the format described below.
+3. Double-click the `OSCSceneController.app` file to run it.
+4. Load in your configuration, and follow the in-app instructions.
+
+### Windows
+
+1. Download the `OSCSceneController.exe` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
+2. Create the YAML Configuration File by following the format described below.
+3. Double-click the `OSCSceneController.exe` file to run it.
+4. Load in your configuration, and follow the in-app instructions.
+
+### Linux
+
+1. Download the `OSCSceneController.elf` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
+2. Create the YAML Configuration File by following the format described below.
+3. From the command line, `cd` into the folder with the executable and run `./OSCSceneController.elf`.
+4. Load in your configuration, and follow the in-app instructions.
+
+Note: The executable was built for debian-based 64-bit systems.  If it doesn't work on your system, follow the Contributing guide below to setup the environment and build it manually.
+
 
 ## The YAML Configuration File
 The scenes.yaml configuration file should contain the following sections:
@@ -187,7 +207,7 @@ cd osc-scenes
 python3 -m pip install --user virtualenv
 python3 -m virtualenv env
 source env/bin/activate  # Might be /env/Scripts/activate on Windows
-pip3 install -r requironments.pip
+pip3 install -r requironments.txt
 ```
 
 ### Developing
@@ -195,11 +215,11 @@ pip3 install -r requironments.pip
 Modify the OSCSceneController.py file to fix issues or add new features
 Test your changes by running `python3 OSCSceneController.py`
 
-### Building New Executable
+### Building the Executable
 
-Run the included `build_app` script to generate the new `OSCSceneController.app` file:
+Run the included build script to generate the new executable file for your operating system:
 ```sh
-./build_app
+python3 build.py
 ```
 
 ### Submitting Pull Request
