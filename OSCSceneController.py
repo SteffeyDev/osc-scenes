@@ -11,6 +11,7 @@ from tkinter import font
 from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 import webbrowser
+import signal
 
 debug = False
 
@@ -524,8 +525,20 @@ To start, load a configuration (a YAML file with the scenes in it).
     self.grid_columnconfigure(0, weight=1)
     self.grid_rowconfigure(0, weight=1)
 
+class GracefulKiller:
+  kill_now = False
+  def __init__(self, app):
+    self.app = app
+    signal.signal(signal.SIGINT, self.exit_gracefully)
+    signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+  def exit_gracefully(self,signum, frame):
+    self.app.destroy()
+    self.kill_now = True
+
 if __name__ == "__main__":
   app = MyApp()
+  killer = GracefulKiller(app)
   app.title("OSC Scene Controller")
   app.mainloop()
   app.stop()
