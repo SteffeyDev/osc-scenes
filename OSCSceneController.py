@@ -388,9 +388,9 @@ class MyApp(tk.Tk):
 
   def input_port_changed(self, text):
     try:
-      self.controller.stop()
-      self.controller.start(int(self.input_port_text.get()))
-      self.focus()
+      if self.controller.running:
+        self.controller.stop()
+        self.controller.start(int(self.input_port_text.get()))
       self.log("Input port changed, now listening on port {0}".format(self.input_port_text.get()))
     except PermissionError:
       messagebox.showerror("Invalid Port", "It looks like that port is already in use or is reserved, try another one!")
@@ -406,21 +406,33 @@ class MyApp(tk.Tk):
       return False
 
   def output_ip_changed(self, text):
+    if self.output_ip_text.get() == "":
+      self.output_ip_address = None
+      return
     if (self.verifyIpAddress(self.output_ip_text.get())):
       self.output_ip_address = self.output_ip_text.get()
       if self.output_port is not None:
         self.controller.setOutputAddress(self.output_ip_address, self.output_port)
         self.log("Output IP address changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
-      self.focus()
     else:
       messagebox.showerror("Invalid IP Address", "Please enter a valid IPv4 address")
+      self.outgoing_ip_entry.focus()
 
   def output_port_changed(self, text):
-    self.output_port = int(self.output_port_text.get())
+    if self.output_port_text.get() == "":
+      self.output_port = None
+      return
+    try:
+      self.output_port = int(self.output_port_text.get())
+      if self.output_ip_address is not None and self.output_port is not None:
+        self.controller.setOutputAddress(self.output_ip_address, self.output_port)
+        self.log("Output port changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
+    except ValueError:
+      messagebox.showerror("Invalid Port", "Please entry a integer value in the range 1000-65535")
+      self.outgoing_port_entry.focus()
+
+  def focus_root(self, text):
     self.focus()
-    if self.output_ip_address is not None:
-      self.controller.setOutputAddress(self.output_ip_address, self.output_port)
-      self.log("Output port changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
 
   def open_documentation(self, extra):
     webbrowser.open_new("https://github.com/SteffeyDev/osc-scenes/blob/master/README.md")
@@ -474,19 +486,29 @@ class MyApp(tk.Tk):
 
     output_box = ttk.Frame(left_side)
     output_address_box = ttk.Frame(output_box)
-    self.output_ip_text = tk.StringVar()
-    outgoing_ip_entry = ttk.Entry(output_address_box, width=13, textvariable=self.output_ip_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isIpAddressCommand)
-    outgoing_ip_entry.bind('<Return>', self.output_ip_changed)
+
+    output_ip_text = tk.StringVar()
+#output_ip_text.trace("w", lambda name, index, mode, output_ip_text=output_ip_text: self.output_ip_changed(output_ip_text))
+    outgoing_ip_entry = ttk.Entry(output_address_box, width=13, textvariable=output_ip_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isIpAddressCommand)
+    outgoing_ip_entry.bind('<FocusOut>', self.output_ip_changed)
+    outgoing_ip_entry.bind('<Return>', self.focus_root)
     outgoing_ip_entry.pack(side="left", padx=2)
     ttk.Label(output_address_box, text=":", font=smallBoldFont).pack(side="left", pady=(0,6))
-    self.output_port_text = tk.StringVar()
-    outgoing_port_entry = ttk.Entry(output_address_box, width=5, textvariable=self.output_port_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
-    outgoing_port_entry.bind('<Return>', self.output_port_changed)
+    self.output_ip_text = output_ip_text
+    self.outgoing_ip_entry = outgoing_ip_entry
+
+    output_port_text = tk.StringVar()
+#output_port_text.trace("w", lambda name, index, mode, output_port_text=output_port_text: self.output_port_changed(output_port_text))
+    outgoing_port_entry = ttk.Entry(output_address_box, width=5, textvariable=output_port_text, font=smallBoldFont, justify="center", validate="key", validatecommand=isPortCommand)
+    outgoing_port_entry.bind('<FocusOut>', self.output_port_changed)
+    outgoing_port_entry.bind('<Return>', self.focus_root)
     outgoing_port_entry.pack(side="right", padx=2)
     output_address_box.pack()
     self.generateLine(output_box, 130)
     ttk.Label(output_box, text="Outgoing Reply").pack()
     output_box.pack(pady=15)
+    self.output_port_text = output_port_text
+    self.outgoing_port_entry = outgoing_port_entry
 
     scene_box = ttk.Frame(left_side)
     self.scene_file_text = tk.StringVar()
