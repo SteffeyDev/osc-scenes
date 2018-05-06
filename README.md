@@ -4,6 +4,10 @@ A lot of lighting, sound, and video control software supports the [OSC](http://o
 
 ## Introduction
 
+### Features
+* Powerful OSC automation using stateful scenes
+* Basic OSC message routing
+
 ### What is YAML?
 YAML is a human readable markdown language.  It serves the same purpose as XML and JSON, but is much easier to understand and use.  Check out [yaml.org](http://www.yaml.org) for more information.
 
@@ -16,28 +20,39 @@ OSC messages contain 2 parts:
 
 ## Getting Started
 
-### MacOS
+### Download
 
-1. Download the `OSCSceneController.app.zip` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
+#### MacOS
+
+1. Download the `OSCSceneController-Version.app.zip` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest) that matches your MacOS Version.
 2. Create the YAML Configuration File by following the format described below.
 3. Double-click the `OSCSceneController.app` file to run it.
-4. Load in your configuration, and follow the in-app instructions.
 
-### Windows
+#### Windows
 
 1. Download the `OSCSceneController.exe` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
 2. Create the YAML Configuration File by following the format described below.
 3. Double-click the `OSCSceneController.exe` file to run it.
-4. Load in your configuration, and follow the in-app instructions.
 
-### Linux
+#### Linux
 
 1. Download the `OSCSceneController.elf` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
 2. Create the YAML Configuration File by following the format described below.
 3. From the command line, `cd` into the folder with the executable and run `./OSCSceneController.elf`.
-4. Load in your configuration, and follow the in-app instructions.
 
 Note: The executable was built for debian-based 64-bit systems.  If it doesn't work on your system, follow the Contributing guide below to setup the environment and build it manually.
+
+### Setup
+
+Follow the instructions below to create a YAML configuration file, or just modify the example one included in this repository.
+
+### Run
+
+Simply load the configuration file, change the default listening port if needed, and follow the in-app instructions to get started!
+
+OSC messages starting with `/scene` will be processed, and the corresponding OSC messages will be sent out to each endpoint.
+
+OSC messages starting with anything else will be forwarded (routed) to the correct destination based on your endpoint settings in the configuration file.
 
 
 ## The YAML Configuration File
@@ -56,8 +71,8 @@ This is a list of the other applications you would like to send OSC commands to.
 * `ip`:string - A valid IPv4 address of where to send the commands.
   - If the endpoint is running on the same computer as the scene controller, use `127.0.0.1`.
 * `port`:int - The UDP port to send the OSC commands to
-* `valueType`:string - A value (either `float` or `int`) that defines how numbers should be sent to this device
-  - Optional - Default is `float`
+* `valueType`:string - A value (`float` or `int` or `string`) that defines how numbers should be sent to this device
+  - If not defined, the type will be guessed on a per-argument basis.
 
 ### Map
 
@@ -108,12 +123,11 @@ endpoints:
     prefix: atem
     ip: 10.0.0.2
     port: 3456
-    valueType: float
+    valueType: float    # Forces all arguments to be float value if possible
   -
     prefix: sc
     ip: 127.0.0.1
     port: 8001
-    valueType: int
 
 map:
   video:
@@ -160,6 +174,21 @@ scenes:
 ```
 
 ## Advanced Mapping
+
+### Sending complex data using argument lists
+
+The above example only showed integers in the map, but many types of OSC messages are supported.  If you specify a `valueType` in the endpoint settings, all the arguments associated with a message will be cast to that type if possible.  If not specified, or if the cast fails, the type is assumed as follows:
+* Only digits 0-9: `int`
+* Digits 0-9 with one decimal point: `float`
+* "true" and "false" (case-insensitive): `bool`
+* All others: `string`
+
+For example, you could specify the following in the map:
+```
+foo: /this/is/a/complex/message 45 testing 4.5689 false
+```
+
+The types for this message would be: `int`, `string`, `float`, and `bool`
 
 ### Infinite levels
 In the above example, the mapping only went 3/4 levels deep.  You can go as deep as needed, as long as the levels in your map match the levels in your scene

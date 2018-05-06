@@ -27,22 +27,56 @@ class OSCMessage:
     self._prefix = message.split("/")[1]
     self._addr = message.split(" ")[0]
     self._delay = delay
-    if self._prefix == "scene" or self._prefix not in value_types:
-      self._arg = int(message.split(" ")[1])
-    elif value_types[self._prefix] == "float":
-      self._arg = float(message.split(" ")[1])
-    elif value_types[self._prefix] == "int":
-      self._arg = int(message.split(" ")[1])
-    else: # By default use int
-      self._arg = int(message.split(" ")[1])
-  
+    self.args = []
+
+    # Go through each argument, parse it, and add it to the array in the correct type
+    for arg in message.split(" ")[1:]:
+      if self._prefix == "scene":
+        self._args.append(int(arg))
+        continue
+
+      if self._prefix in value_types:
+        try:
+          if value_types[self._prefix] == "float":
+            self._args.append(float(arg))
+          elif value_types[self._prefix] == "int":
+            self._args.append(int(arg))
+          elif value_types[self._prefix] == "string":
+            self._args.append(arg)
+          continue
+        except ValueError:
+          pass
+
+      # Check first if it is an int
+      if arg.isdigit():
+        self._args.append(int(arg))
+        continue
+
+      # Then see if if is a float
+      try:
+        self._args.append(float(arg))
+        continue
+      except ValueError:
+        pass
+        
+      # Then see if it is a boolean type
+      if arg.lower() == "true":
+        self._args.append(True)
+        continue
+      if arg.lower() == "false":
+        self._args.append(False)
+        continue
+
+      # If all else fails, it must be a string
+      self._args.append(arg)
+
   @property
   def address(self):
     return self._addr
   
   @property
-  def argument(self):
-    return self._arg
+  def arguments(self):
+    return self._args
 
   @property
   def delay(self):
@@ -55,8 +89,6 @@ class OSCMessage:
   @property
   def prefix(self):
     return self._prefix
-
-
 
 ### Generate the OSC commands that need to be sent for each scene
 # by parsing the YAML file
@@ -184,6 +216,7 @@ class OSCSceneController():
           dispatch.map("/scene/" + key, self.respond_to_scene)
         for number in self.parser.getMidiMap():
           dispatch.map("/midi-scene/" + str(round(number / 127, 2)), self.respond_to_scene)
+        dispatch.set_default_handler(self.route_message)
 
         self.server = osc_server.BlockingOSCUDPServer(("0.0.0.0", input_port), dispatch)
         self.server_thread = Thread(target=self.server.serve_forever)
@@ -204,6 +237,9 @@ class OSCSceneController():
 
   def isRunning(self):
     return self.running
+
+  def route_message(self, addr, args):
+    self.send_msg(OSCMessage(addr + " " + str(args)))
 
   def respond_to_scene(self, addr, args = 1):
     scene_map = self.parser.getSceneMap()
@@ -268,11 +304,11 @@ class OSCSceneController():
     if message.delay == 0:
       if message.prefix == "scene":
         if self.output_client is not None:
-          self.output_client.send_message(message.address, message.argument)
+          self.output_client.send_message(message.address, message.arguments)
       else:
-        self.parser.getUdpClients()[message.prefix].send_message(message.address, message.argument)
-      print("Sending message:", message.address, message.argument)
-      log_data.append("Sending: " + message.address + " " + str(message.argument))
+        self.parser.getUdpClients()[message.prefix].send_message(message.address, message.arguments)
+      print("Sending message:", message.address, message.arguments)
+      log_data.append("Sending: " + message.address + " " + str(message.arguments))
 
     else:
       wait = message.delay
