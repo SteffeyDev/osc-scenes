@@ -58,21 +58,14 @@ OSC messages starting with anything else will be forwarded (routed) to the corre
 ## The YAML Configuration File
 The scenes.yaml configuration file should contain the following sections:
 
-### Server
-
-This is where you configure the OSC Server.  Options include:
-* `listen_port`:int - This if the port that the OSC Scene controller will listen on
-
 ### Endpoints
 
-This is a list of the other applications you would like to send OSC commands to.  Options for each item include:
-* `prefix`:string - What commands should be sent to this endpoint?
+This is a list of the applications you would like to send OSC commands to.  Options for each item include:
+* `prefix` (string) - What commands should be sent to this endpoint?
   - Most OSC commands start with a device indicator, such as `/dmxis/command/...`.  Setting the prefix as `dmxis` will cause all OSC commands that start with `/dmxis/` to be sent to this endpoint.
-* `ip`:string - A valid IPv4 address of where to send the commands.
+* `ip` (string) - A valid IPv4 address of where to send the commands.
   - If the endpoint is running on the same computer as the scene controller, use `127.0.0.1`.
-* `port`:int - The UDP port to send the OSC commands to
-* `valueType`:string - A value (`float` or `int` or `string`) that defines how numbers should be sent to this device
-  - If not defined, the type will be guessed on a per-argument basis.
+* `port` (int) - The UDP port to send the OSC commands to
 
 ### Map
 
@@ -115,15 +108,11 @@ This is a list of scenes, each with the following options:
 Here is what a basic `scenes.yaml` file should look like:
 
 ```yaml
-server:
-  listen_port: 8002
-
 endpoints:
   -
     prefix: atem
     ip: 10.0.0.2
     port: 3456
-    valueType: float    # Forces all arguments to be float value if possible
   -
     prefix: sc
     ip: 127.0.0.1
@@ -177,7 +166,7 @@ scenes:
 
 ### Sending complex data using argument lists
 
-The above example only showed integers in the map, but many types of OSC messages are supported.  If you specify a `valueType` in the endpoint settings, all the arguments associated with a message will be cast to that type if possible.  If not specified, or if the cast fails, the type is assumed as follows:
+The above example only showed integers in the map, but many types of OSC messages are supported. The type is assumed as follows:
 * Only digits 0-9: `int`
 * Digits 0-9 with one decimal point: `float`
 * "true" and "false" (case-insensitive): `bool`

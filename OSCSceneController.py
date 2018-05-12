@@ -17,58 +17,48 @@ debug = False
 
 active_scene = None
 log_data = []
-value_types = {}
 
 class OSCMessage:
-  def __init__(self, message, delay = 0):
+  def __init__(self, message, args = None, *, delay = 0):
     if debug:
       print("Creating OSCMessage from message:", message)
 
     self._prefix = message.split("/")[1]
     self._addr = message.split(" ")[0]
     self._delay = delay
-    self.args = []
+    self._args = []
 
-    # Go through each argument, parse it, and add it to the array in the correct type
-    for arg in message.split(" ")[1:]:
-      if self._prefix == "scene":
-        self._args.append(int(arg))
-        continue
+    if args is not None:
+      self._args = args
+    else:
+      # Go through each argument, parse it, and add it to the array in the correct type
+      for arg in message.split(" ")[1:]:
+        if self._prefix == "scene":
+          self._args.append(int(arg))
+          continue
 
-      if self._prefix in value_types:
+        # Check first if it is an int
+        if arg.isdigit():
+          self._args.append(int(arg))
+          continue
+
+        # Then see if if is a float
         try:
-          if value_types[self._prefix] == "float":
-            self._args.append(float(arg))
-          elif value_types[self._prefix] == "int":
-            self._args.append(int(arg))
-          elif value_types[self._prefix] == "string":
-            self._args.append(arg)
+          self._args.append(float(arg))
           continue
         except ValueError:
           pass
+          
+        # Then see if it is a boolean type
+        if arg.lower() == "true":
+          self._args.append(True)
+          continue
+        if arg.lower() == "false":
+          self._args.append(False)
+          continue
 
-      # Check first if it is an int
-      if arg.isdigit():
-        self._args.append(int(arg))
-        continue
-
-      # Then see if if is a float
-      try:
-        self._args.append(float(arg))
-        continue
-      except ValueError:
-        pass
-        
-      # Then see if it is a boolean type
-      if arg.lower() == "true":
-        self._args.append(True)
-        continue
-      if arg.lower() == "false":
-        self._args.append(False)
-        continue
-
-      # If all else fails, it must be a string
-      self._args.append(arg)
+        # If all else fails, it must be a string
+        self._args.append(arg)
 
   @property
   def address(self):
@@ -109,12 +99,13 @@ class SceneParser():
     self.scene_names = {}
     self.midi_map = {}
     self.udp_clients = {}
+    self.udp_client_strings = {}
 
     print("\nOutput Settings")
     udp_clients = {}
     for endpoint in endpoints:
       self.udp_clients[endpoint['prefix']] = udp_client.SimpleUDPClient(endpoint['ip'], endpoint['port'], allow_broadcast=True)
-      value_types[endpoint['prefix']] = endpoint['valueType']
+      self.udp_client_strings[endpoint['prefix']] = endpoint['ip'] + ":" + str(endpoint['port'])
       print("Sending commands that start with /" + endpoint['prefix'] + " to " + endpoint['ip'] + ":" + str(endpoint['port']))
 
     for scene in scenes:
@@ -137,12 +128,13 @@ class SceneParser():
 
 
   def is_osc_command(self, item):
-    return isinstance(item, str) and item.startswith("/") and len(item.split("/")) > 2 and len(item.split(" ")) > 1
+    return isinstance(item, str) and item.startswith("/") and len(item.split("/")) > 1
 
   def get_commands(self, key, value, map_value, array):
 
     def print_error(key, value, map_value):
       print("Could not process item with key ", key, ", value:", value, ", and map value:", map_value)
+      log_data.append("\nConfiguration Warning - Could not process item with key \"" + key + "\", value: \"" + str(value) + "\", and map value: \"" + str(map_value) + "\"")
 
     if debug:
       print("Getting commands for key:", key, "and value:", value, "\nUsing map_value:", map_value)
@@ -160,12 +152,12 @@ class SceneParser():
       for map_key, map_val in map_value.items():
         if map_key in value and map_key != "none":
           if map_key in map_value and 'in' in map_value[map_key] and self.is_osc_command(map_value[map_key]['in']):
-            array.append(OSCMessage(map_value[map_key]['in'], delay))
+            array.append(OSCMessage(map_value[map_key]['in'], delay=delay))
           else:
             print_error(key, value, map_value)
         else:
           if map_key in map_value and 'out' in map_value[map_key] and self.is_osc_command(map_value[map_key]['out']):
-            array.append(OSCMessage(map_value[map_key]['out'], delay))
+            array.append(OSCMessage(map_value[map_key]['out'], delay=delay))
           else:
             print_error(key, value, map_value)
 
@@ -176,7 +168,7 @@ class SceneParser():
         delay = int(value.split(" ")[1].replace("s", ""))
 
       if string in map_value and self.is_osc_command(map_value[string]):
-        array.append(OSCMessage(map_value[string], delay))
+        array.append(OSCMessage(map_value[string], delay=delay))
       else:
         print_error(key, value, map_value)
 
@@ -197,6 +189,9 @@ class SceneParser():
 
   def getUdpClients(self):
     return self.udp_clients
+
+  def getUdpClientStrings(self):
+    return self.udp_client_strings
 
 
 class OSCSceneController():
@@ -238,8 +233,8 @@ class OSCSceneController():
   def isRunning(self):
     return self.running
 
-  def route_message(self, addr, args):
-    self.send_msg(OSCMessage(addr + " " + str(args)))
+  def route_message(self, addr, *args):
+    self.send_msg(OSCMessage(addr, args))
 
   def respond_to_scene(self, addr, args = 1):
     scene_map = self.parser.getSceneMap()
@@ -261,7 +256,13 @@ class OSCSceneController():
 
     # If we are recieving one of the turn off signals that
     # we are sending, ignore it (prevent feedback loop)
-    if args == 0 or new_scene == self.last_scene:
+    if args == 0:
+      return
+
+    # If we are trying to select the same scene, resend confirmation message but don't process again
+    if new_scene == self.last_scene:
+      if self.output_client is not None:
+        self.send_msg(OSCMessage("/scene/" + new_scene + " 1"))
       return
 
     print("\nGot Message: ", addr, " ", args)
@@ -308,7 +309,7 @@ class OSCSceneController():
       else:
         self.parser.getUdpClients()[message.prefix].send_message(message.address, message.arguments)
       print("Sending message:", message.address, message.arguments)
-      log_data.append("Sending: " + message.address + " " + str(message.arguments))
+      log_data.append("Sending \"" + message.address + " " + " ".join([str(s) for s in message.arguments]) + "\" to " + self.parser.getUdpClientStrings()[message.prefix])
 
     else:
       wait = message.delay
@@ -386,7 +387,7 @@ class MyApp(tk.Tk):
         self.log("Successfully loaded new configuration from file: {0}".format(new_filename))
         if not self.controller.isRunning():
           self.controller.start(int(self.input_port_text.get()))
-          self.log("Server started, listening on all interfaces on port {0}...".format(self.input_port_text.get()))
+          self.log("Server started, listening on all interfaces on port {0}...\n".format(self.input_port_text.get()))
 
   def isPort(self, value_if_allowed, text):
     if value_if_allowed == "":
