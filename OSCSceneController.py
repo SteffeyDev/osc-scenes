@@ -306,8 +306,10 @@ class OSCSceneController():
       if message.prefix == "scene":
         if self.output_client is not None:
           self.output_client.send_message(message.address, message.arguments)
-      else:
+      elif message.prefix in self.parser.getUdpClients():
         self.parser.getUdpClients()[message.prefix].send_message(message.address, message.arguments)
+      else:
+        log_data.append("Prefix not recognized: {0}".format(message.prefix))
       print("Sending message:", message.address, message.arguments)
       log_data.append("Sending \"" + message.address + " " + " ".join([str(s) for s in message.arguments]) + "\" to " + self.parser.getUdpClientStrings()[message.prefix])
 
