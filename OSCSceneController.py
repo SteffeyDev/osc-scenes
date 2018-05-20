@@ -337,6 +337,7 @@ class OSCSceneController():
     else:
       wait = message.delay
       message.delay = 0
+      log_data.append("Scheduling \"{0}\" to be sent after {1} seconds".format(message.address, message.delay))
       r = Timer(wait, self.send_msg, [message])  
       r.start()
 
