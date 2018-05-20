@@ -322,8 +322,8 @@ class OSCSceneController():
       self.send_msg(osc_command)
 
 
-  def send_msg(self, message):
-    if message.delay == 0:
+  def send_msg(self, message, delay_bypass = False):
+    if message.delay == 0 or delay_bypass:
       if message.prefix == "scene":
         if self.output_client is not None:
           self.output_client.send_message(message.address, message.arguments)
@@ -336,9 +336,8 @@ class OSCSceneController():
 
     else:
       wait = message.delay
-      message.delay = 0
       log_data.append("Scheduling \"{0}\" to be sent after {1} seconds".format(message.address, message.delay))
-      r = Timer(wait, self.send_msg, [message])  
+      r = Timer(wait, self.send_msg, [message, True])  
       r.start()
 
   def setOutputAddress(self, ip, port):
