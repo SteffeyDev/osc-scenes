@@ -88,6 +88,7 @@ class SceneParser():
     self.scene_map = None
     self.midi_map = None
     self.scene_names = None
+    self.loaded = False
 
   def parseFromFile(self, filename):
     config = yaml.load(open(filename, 'r'))
@@ -125,6 +126,8 @@ class SceneParser():
 
       self.scene_map[scene['key']] = arr
       self.scene_names[scene['key']] = scene['name']
+
+    self.loaded = True
 
 
   def is_osc_command(self, item):
@@ -193,6 +196,9 @@ class SceneParser():
   def getUdpClientStrings(self):
     return self.udp_client_strings
 
+  def isLoaded(self):
+    return self.loaded
+
 
 class OSCSceneController():
   def __init__(self, parser):
@@ -204,31 +210,46 @@ class OSCSceneController():
     self.output_client = None
 
   def start(self, input_port):
-    if not self.running:
-      try:
-        dispatch = dispatcher.Dispatcher()
-        for key in self.parser.getSceneMap():
-          dispatch.map("/scene/" + key, self.respond_to_scene)
-        for number in self.parser.getMidiMap():
-          dispatch.map("/midi-scene/" + str(round(number / 127, 2)), self.respond_to_scene)
-        dispatch.set_default_handler(self.route_message)
+    if self.running:
+      self.stop()
 
-        self.server = osc_server.BlockingOSCUDPServer(("0.0.0.0", input_port), dispatch)
-        self.server_thread = Thread(target=self.server.serve_forever)
-        self.server_thread.start()
-        self.running = True
+    if not self.parser.isLoaded():
+      log_data.append("No configuration loaded, once you load a configuration the server will start")
+      return
 
-      except KeyboardInterrupt:
-        print("Exiting...")
-        sys.exit(0)
+    for key, string in self.parser.getUdpClientStrings().items():
+      if string.split(":")[1] == str(input_port):
+        log_data.append("Cannot start server because the input port {0} is the same as the the output port for prefix '{1}'.  Please change the input port.".format(input_port, key))
+        return
 
+    try:
+      dispatch = dispatcher.Dispatcher()
+      for key in self.parser.getSceneMap():
+        dispatch.map("/scene/" + key, self.respond_to_scene)
+      for number in self.parser.getMidiMap():
+        dispatch.map("/midi-scene/" + str(round(number / 127, 2)), self.respond_to_scene)
+      dispatch.set_default_handler(self.route_message)
+
+      self.server = osc_server.BlockingOSCUDPServer(("0.0.0.0", input_port), dispatch)
+      self.server_thread = Thread(target=self.server.serve_forever)
+      self.server_thread.start()
+      log_data.append("\nServer started, listening on all interfaces on port {0}...\n".format(input_port))
+      self.running = True
+
+    except KeyboardInterrupt:
+      print("Exiting...")
+      sys.exit(0)
 
   def stop(self):
-    if (self.server_thread is not None and self.server is not None and self.running):
-      self.server.shutdown()
-      self.server_thread.join()
-      self.server = None
-      self.server_thread = None
+    if self.running:
+      if self.server is not None:
+        self.server.shutdown()
+        self.server = None
+      if self.server_thread is not None:
+        self.server_thread.join()
+        self.server_thread = None
+    self.running = False
+    log_data.append("\nServer stopped\n")
 
   def isRunning(self):
     return self.running
@@ -387,9 +408,7 @@ class MyApp(tk.Tk):
         self.parser.parseFromFile(new_filename)
         self.scene_file_text.set(new_filename.split("/")[-1])
         self.log("Successfully loaded new configuration from file: {0}".format(new_filename))
-        if not self.controller.isRunning():
-          self.controller.start(int(self.input_port_text.get()))
-          self.log("Server started, listening on all interfaces on port {0}...\n".format(self.input_port_text.get()))
+        self.controller.start(int(self.input_port_text.get()))
 
   def isPort(self, value_if_allowed, text):
     if value_if_allowed == "":
@@ -427,10 +446,7 @@ class MyApp(tk.Tk):
 
   def input_port_changed(self, text):
     try:
-      if self.controller.running:
-        self.controller.stop()
-        self.controller.start(int(self.input_port_text.get()))
-      self.log("Input port changed, now listening on port {0}".format(self.input_port_text.get()))
+      self.controller.start(int(self.input_port_text.get()))
     except PermissionError:
       messagebox.showerror("Invalid Port", "It looks like that port is already in use or is reserved, try another one!")
 
