@@ -29,7 +29,10 @@ class OSCMessage:
     self._args = []
 
     if args is not None:
-      self._args = args
+      if isinstance(args, list):
+        self._args = args
+      else:
+        self._args = [args]
     else:
       # Go through each argument, parse it, and add it to the array in the correct type
       for arg in message.split(" ")[1:]:
@@ -302,14 +305,16 @@ class OSCSceneController():
 
       # If we know what the last scene is, deselect it
       if self.last_scene is not None:
-        self.send_msg(OSCMessage("/scene/" + self.last_scene + " 0"))
+        self.send_msg(OSCMessage("/scene/" + self.last_scene, 0))
+        self.send_msg(OSCMessage("/scene/" + self.last_scene, 0.0))
 
       # If we don't know what the last scene is, turn them all off
       #   except for the current scene
       else:
         for key in scene_map:
           if key != new_scene:
-            self.send_msg(OSCMessage("/scene/" + key +" 0"))
+            self.send_msg(OSCMessage("/scene/" + key, 0))
+            self.send_msg(OSCMessage("/scene/" + key, 0.0))
           
       self.last_scene = new_scene
 
