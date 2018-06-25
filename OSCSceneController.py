@@ -12,6 +12,7 @@ from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 import webbrowser
 import signal
+import itertools
 
 debug = False
 
@@ -29,8 +30,10 @@ class OSCMessage:
     self._args = []
 
     if args is not None:
-      if isinstance(args, list):
+      if type(args) is list:
         self._args = args
+      elif type(args) is tuple:
+        self._args = list(itertools.chain.from_iterable([args])) # convert to array
       else:
         self._args = [args]
     else:
