@@ -13,6 +13,34 @@ from tkinter.scrolledtext import ScrolledText
 import webbrowser
 import signal
 import itertools
+import appdirs
+import json
+
+class UserPreferences:
+  def __init__(self):
+    self.user_data_dir = appdirs.user_data_dir("OSCSceneController", "SteffeyDev")
+
+    if not os.path.exists(self.user_data_dir):
+      os.makedirs(self.user_data_dir)
+
+    self.preferences_file_path = self.user_data_dir + "/preferences.json"
+    if os.path.exists(self.preferences_file_path):
+      with open(self.preferences_file_path, 'r') as preferencesFile:
+        self.data = json.loads(preferencesFile.read())
+        preferencesFile.close()
+    else:
+      self.data = {}
+
+  def get(self, name):
+    if name in self.data:
+      return self.data[name]
+    return None
+
+  def set(self, name, value):
+    self.data[name] = value
+    with open(self.preferences_file_path, 'w') as preferencesFile:
+      preferencesFile.write(json.dumps(self.data))
+      preferencesFile.close()
 
 debug = False
 
@@ -363,18 +391,51 @@ class MyApp(tk.Tk):
     self.log_data_len = None
     self.output_port = None
     self.output_ip_address = None
+    self.preferences = UserPreferences()
 
     self.minsize(500, 430)
     menubar = tk.Menu(self)
-    if (sys.platform == "Darwin"):
-      menubar.add_command(label="Quit", command=self.quit())
     self.config(menu=menubar, background="white")
 
     self.iconbitmap('app_icon.ico')
 
+    if (sys.platform == "darwin"):
+      self.createcommand('::tk::mac::ShowPreferences', self.quit)
+
     self.build()
     self.deiconify()
     self.after(1000, self.updateGUI)
+
+    # Load data from preferences file
+    if self.preferences.get('output_ip_address') is not None:
+      self.output_ip_address = self.preferences.get('output_ip_address')
+      self.output_ip_text.set(self.output_ip_address)
+    if self.preferences.get('output_port') is not None:
+      self.output_port = self.preferences.get('output_port')
+      self.output_port_text.set(str(self.output_port))
+    if self.preferences.get('filename') is not None:
+      self.filename = self.preferences.get('filename')
+      self.scene_file_text.set(self.filename.split("/")[-1])
+    if self.preferences.get('input_port') is not None:
+      self.input_port_text.set(self.preferences.get('input_port'))
+
+
+    if self.output_ip_address is not None and self.output_port is not None:
+      self.controller.setOutputAddress(self.output_ip_address, self.output_port)
+      self.preferences.set('output_port', self.output_port)
+      self.log("Output port set, sending to {0}:{1}".format(self.output_ip_address, self.output_port))
+
+    if self.filename is not None:
+      self.parser.parseFromFile(self.filename)
+      self.scene_file_text.set(self.filename.split("/")[-1])
+      self.log("Successfully loaded configuration from file: {0}".format(self.filename))
+      self.controller.start(int(self.input_port_text.get()))
+    else:
+      self.log("To start, load a configuration (a YAML file with the scenes in it).")
+
+#  def quit(self):
+#    self.stop()
+#    self.destroy()
 
   def stop(self):
     self.controller.stop()
@@ -417,6 +478,7 @@ class MyApp(tk.Tk):
         self.scene_file_text.set(new_filename.split("/")[-1])
         self.log("Successfully loaded new configuration from file: {0}".format(new_filename))
         self.controller.start(int(self.input_port_text.get()))
+        self.preferences.set('filename', self.filename)
 
   def isPort(self, value_if_allowed, text):
     if value_if_allowed == "":
@@ -453,8 +515,10 @@ class MyApp(tk.Tk):
     self.log_text_box.yview('end')
 
   def input_port_changed(self, text):
+    self.focus()
     try:
       self.controller.start(int(self.input_port_text.get()))
+      self.preferences.set('input_port', int(self.input_port_text.get()))
     except PermissionError:
       messagebox.showerror("Invalid Port", "It looks like that port is already in use or is reserved, try another one!")
 
@@ -474,6 +538,7 @@ class MyApp(tk.Tk):
       return
     if (self.verifyIpAddress(self.output_ip_text.get())):
       self.output_ip_address = self.output_ip_text.get()
+      self.preferences.set('output_ip_address', self.output_ip_address)
       if self.output_port is not None:
         self.controller.setOutputAddress(self.output_ip_address, self.output_port)
         self.log("Output IP address changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
@@ -487,6 +552,7 @@ class MyApp(tk.Tk):
       return
     try:
       self.output_port = int(self.output_port_text.get())
+      self.preferences.set('output_port', self.output_port)
       if self.output_ip_address is not None and self.output_port is not None:
         self.controller.setOutputAddress(self.output_ip_address, self.output_port)
         self.log("Output port changed, now sending to {0}:{1}".format(self.output_ip_address, self.output_port))
@@ -599,7 +665,6 @@ You can send OSC messages in the form: /scene/<key> or /midi-scene/<number> to t
 
 Upon reciept of a message, I'll automatically retransmit and send out “/scene/<last_key> 0”, where <last_key> is the key of the previous current scene.  If you want to receive these messages, set the Outgoing Reply IP address and port.
 
-To start, load a configuration (a YAML file with the scenes in it).
 """)
     self.log_text_box.configure(state='disabled')
     
@@ -611,19 +676,25 @@ To start, load a configuration (a YAML file with the scenes in it).
     self.grid_rowconfigure(0, weight=1)
 
 class GracefulKiller:
-  kill_now = False
   def __init__(self, app):
     self.app = app
     signal.signal(signal.SIGINT, self.exit_gracefully)
     signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-  def exit_gracefully(self,signum, frame):
+  def exit_gracefully(self, signum, frame):
     self.app.destroy()
-    self.kill_now = True
+
+  def macos_quit(self):
+    self.app.destroy()
 
 if __name__ == "__main__":
   app = MyApp()
   killer = GracefulKiller(app)
+
+  # Handle MacOS quit event
+  if (sys.platform == "darwin"):
+    app.createcommand('::tk::mac::Quit', killer.macos_quit)
+
   app.title("OSC Scene Controller")
   app.mainloop()
   app.stop()
