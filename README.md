@@ -1,4 +1,4 @@
-# Pushback - OSC Scene Controller
+# OSC Scene Controller
 
 A lot of lighting, sound, and video control software supports the [OSC](http://opensoundcontrol.org/introduction-osc) protocol, so users can you tools like [TouchOSC](https://hexler.net/software/touchosc) or [OSCulator](https://osculator.net) to control a live production.  This scene controller listens for OSC input in the form `/scene/<scene-key>` and sends out a sequence of user-defined OSC commands to various endpoints so that lighting, sound, and video can be controlled with one command.  All configuration is through a YAML file that is provided by the user.
 
@@ -140,34 +140,39 @@ Now, just save the file as `first_scenes.yml` and load it up! Unless you have OS
 
 ### More Advanced Scenes
 
-Alright, so now that you have the basics down, let's improve our setup.  Our tv can do more than change channels; it can change inputs with `/tv/input <name>` and set the volume with `/tv/volume <level>`.  We want to make a scene that will stop the music and blow the train's whistle.  Here's our new scene and map:
+Alright, so now that you have the basics down, let's improve our setup.  Our tv can do more than change channels; it can change inputs with `/tv/input <name>` and set the volume with `/tv/volume <level>`.  We want to make a scene that will bring down the volume and then change the tv input few seconds later.  Here's our new scene and map:
 
 ```
 map:
-  train:
-    start:
+  tv:
+    channel:
       ...
-    stop: /train/stop
-    make_sound: /train/whistle
-  music:
-    mood:
-      ...
-    action:
-      pause: /music/pause
+    input:
+      disk:
+        blueray: /tv/input 2
+        dvd: /tv/input 5
+      cable: /tv/input 1
+      ps4: /tv/input 4
+    volume: /tv/volume x
+  lights:
+    ...
 
 scenes:
   ...
   -
-    name: Blow Whistle
-    key: choo_choo
-    train: stop 2s
-    music:
-      action: pause
+    name: Setup for Movie
+    key: movie
+    tv: 
+      input:
+        disk: blueray 5s
+      volume: 2
+    lights:
+      color: blue
 ```
 
-Ok, so a few new things here.  You can pass a time after the name in the scenes map to cause a `delay`.  Now, when you send the `/scene/choo_choo` message, this will immediately pause the music and then schedule the `/train/whistle` message to be sent 2 seconds later.  Hopefully, the music will stop in time for the whistle to actually be heard. (The `...` in the above example just means that I am omitting the parts I discussed previsouly, but in the actual file you still need those parts).
+Ok, so a few new things here.  You can pass a time after the name in the scenes map to cause a `delay`.  Now, when you send the `/scene/movie` message, this will immediately lower the volume and then schedule the `/tv/input dvd` message to be sent 5 seconds later.  (The `...` in the above example just means that I am omitting the parts I discussed previsouly, but in the actual file you still need those parts).
 
-You may have also noticed that this time, the `stop` in the scene was immediately after the `train:`, instead of inside another option like `start`.  In truth, the level of mapping is completely arbituary, and you can set it up to suit your needs.  The following map and scene is completely valid:
+You may have also noticed that this time, the `blueray` in the scene was nested inside the `disk:`, instead of just inside `tv` like `volume`.  In truth, the level of mapping is completely arbituary, and you can set it up to suit your needs.  The following map and scene is completely valid:
 
 ```
 map:
@@ -180,8 +185,8 @@ map:
 
 scenes:
   -
-    name: Stop Train
-    key: train_stop
+    name: Long Example
+    key: lg_ex
     this:
       is:
         a:
@@ -189,33 +194,33 @@ scenes:
             long: path
 ```
 
-Now that that's out of the way, let me introduce you to another cool feature: lists!  Let's say that you just upgraded your music player, and now have 8 speakers positioned around the house for playing the music in various rooms.  We can use lists to turn certain speakers on and off to match a given scene.
+Now that that's out of the way, let me introduce you to another cool feature: lists!  Let's say that you just upgraded your lighting system, and now have 16 smart lights positioned around the house.  We can use lists to turn certain lights on and off to match a given scene.
 
 ```
 map:
-  music:
+  lights:
     ...
-    speakers:
+    power:
       living_room:
-        in: /music/speakers/living_room 1
-        out: /music/speakers/living_room 0
+        in: /lights/power/living_room 1
+        out: /lights/power/living_room 0
       dining_room:
-        in: /music/speakers/dining_room 1
-        out: /music/speakers/dining_room 0
+        in: /lights/power/dining_room 1
+        out: /lights/power/dining_room 0
       kitchen:
-        in: /music/speakers/kitchen 1
-        out: /music/speakers/kitchen 0
+        in: /lights/power/kitchen 1
+        out: /lights/power/kitchen 0
       bedroom:
-        in: /music/speakers/bedroom 1
-        out: /music/speakers/bedroom 0
+        in: /lights/power/bedroom 1
+        out: /lights/power/bedroom 0
 
 scenes:
   -
-    name: Play on all
-    key: play_all
-    music:
-      mood: ecstatic
-      speakers:
+    name: Turn On All
+    key: all_lights
+    lights:
+      color: green
+      power:
         - living_room
         - dining_room
         - kitchen
@@ -223,37 +228,31 @@ scenes:
   -
     name: Dinner Party
     key: dinner
-    music:
-      mood: calm
+    lights:
+      color: white
       speakers:
         - kitchen
         - dining_room
   -
     name: All Off
     key: off
-    music:
-      action: pause
-    speakers:
-      - none
-  -
-    name: Change Song
-    key: new_song
-    music:
-      mood: stressed
+    lights:
+      power:
+        - none
 ```
 
 If you load this up and send `/scene/dinner`, you'll notice that it sends these messages:
 ```
-/music/play <some calm song>
-/music/speakers/living_room 0
-/music/speakers/dining_room 1
-/music/speakers/kitchen 1
-/music/speakers/living_room 0
+/lights/rgb FFFFFF
+/lights/power/living_room 0
+/lights/power/dining_room 1
+/lights/power/kitchen 1
+/lights/power/living_room 0
 ```
 
-Because the scenes always try to match the specified *state*, if you don't include speakers in the list, it will turn them off, and if you do include them, it will turn them on.  This way, it doesn't matter what the current state of the system is, when you want to set up for a dinner party it will send all of the necessary commands to do so.  It will send the mapped `in` command for the items in the list and the mapped `out` command for those not.
+Because the scenes always try to match the specified *state*, if you don't include lights in the list, it will turn them off, and if you do include them, it will turn them on.  This way, it doesn't matter what the current state of the system is, when you want to set up for a dinner party it will send all of the necessary commands to do so.  It will send the mapped `in` command for the items in the list and the mapped `out` command for those not.
 
-If the list is simply `- none`, it will send the `out` commands for all the items.  If you omitted the list entirely (like in the `Change Song` scene), no commands from that list will be sent.
+If the list is simply `- none`, it will send the `out` commands for all the items.  If you omitted the list entirely (like in the `Setup for Movie` scene), no commands from that list will be sent.
 
 ### Wrapping Up
 
