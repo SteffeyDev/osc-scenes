@@ -8,3 +8,4 @@ python-osc==1.6.4
 PyYAML==3.12
 rubicon-objc==0.2.10
 travertino==0.1.2
+appdirs==1.4.3
