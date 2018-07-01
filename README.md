@@ -1,4 +1,4 @@
-# OSC Scene Controller
+# Pushback - OSC Scene Controller
 
 A lot of lighting, sound, and video control software supports the [OSC](http://opensoundcontrol.org/introduction-osc) protocol, so users can you tools like [TouchOSC](https://hexler.net/software/touchosc) or [OSCulator](https://osculator.net) to control a live production.  This scene controller listens for OSC input in the form `/scene/<scene-key>` and sends out a sequence of user-defined OSC commands to various endpoints so that lighting, sound, and video can be controlled with one command.  All configuration is through a YAML file that is provided by the user.
 
@@ -60,10 +60,10 @@ endpoints:
     port: 8001
 ```
 
-Go ahead and open up your favorite text editor (if you don't have one, Notepad will work on Windows, TextEdit on MacOS, and gEdit on Gnome), then copy and paste this in.  You'll need to change up the values to whatever your configuration is.  For example, if you have an app that listens for OSC messages in the form `/train/start <int_value>` on port `3849` on a computer with the IP address of `192.168.15.254`, then you would change one of the endpoints to be:
+Go ahead and open up your favorite text editor (if you don't have one, Notepad will work on Windows, TextEdit on MacOS, and gEdit on Gnome), then copy and paste this in.  You'll need to change up the values to whatever your configuration is.  For example, if you have an app that listens for OSC messages in the form `/tv/channel <int_value>` on port `3849` on a computer with the IP address of `192.168.15.254`, then you would change one of the endpoints to be:
 
 ```
-    prefix: train
+    prefix: tv
     ip: 192.168.15.254
     port: 3849
 ```
@@ -72,7 +72,7 @@ Save that file as `router.yml`.  Open up the OSC Scene Controller, load in `rout
 
 So, pretty basic, right? Just create a list of endpoints and specify the prefix and routing details for each.  You can add as many enpoints as you want, each separated by that line containing nothing but a `-`.  And unfortunately yes, the indentation is important, so try to keep the format consistent.
 
-In case you haven't figured it out by now, the prefix is the first part of the address after the inital `/`. For example, if the address is `/train/start 1`, then the prefix is just `train`.  Most OSC endpoints have a dedicated prefix, so you should be able to use this schema to route to most endpoints.  What is an endpoint?  An endpoint is any application or service capable of processing incoming OSC messages and taking some action on that message.
+In case you haven't figured it out by now, the prefix is the first part of the address after the inital `/`. For example, if the address is `/tv/channel 65`, then the prefix is just `tv`.  Most OSC endpoints have a dedicated prefix, so you should be able to use this schema to route to most endpoints.  What is an endpoint?  An endpoint is any application or service capable of processing incoming OSC messages and taking some action on that message.
 
 If you don't know, the `127.0.0.1` address is called your `localhost` address; use that if the OSC endpoint is on the same computer that you are running the scene controller on.
 
@@ -83,67 +83,64 @@ Ok, so now that you have routing down, let's have some fun! Open up that text ed
 ```
 endpoints:
   -
-    prefix: foo
+    prefix: tv
     ip: 192.168.15.254
     port: 3849
   -
-    prefix: music
+    prefix: lights
     ip: 192.168.15.23
     port: 8005
 ```
 
-Continuing with our previous example, let's say that our endpoint is connected to your working model train and takes commands `/foo/bar <int>` that starts the train at the given speed.  You also have a cool speaker that can play music when it recieves an OSC command, and it listens for commands `/music/play <string>` and then plays the song you pass in.  Of course, you want a quick and easy way to start up your train and also play music to match, so let's create a scene! Add this right after the endpoints section:
+Continuing with our previous example, let's say that our endpoint is connected to your smart tv and takes commands `/tv/channel <int>` that goes to the requested channel.  You also have a cool lighting sysem that can change color when it recieves an OSC command, and it listens for commands `/lights/rgb <string>`.  Of course, you want a quick and easy way to turn on your favorite show and set the lights to match, so let's create a scene! Add this right after the endpoints section:
 
 ```
 scenes:
   -
-    name: Slow & Steady
-    key: start_slow
-    train:
-      start: slow
-    music:
-      mood: somber
+    name: Sunday Afternoon Football
+    key: football
+    tv:
+      channel: espn
+    lights:
+      color: green
+      intensity: 0.3
   -
-    name: Ramping It Up
-    key: start_normal
-    train:
-      start: normal
-    music:
-      mood: happy
-  -
-    name: Goin' Crazy
-    key: start_fast
-    train:
-      start: fast
-    music:
-      mood: excited
+    name: House Hunting
+    key: homes
+    tv:
+      channel: hgtv
+    lights:
+      color: orange
+      intensity: 0.8
 ```
 
-Now, if you send the command `/scene/start_slow` to the scene controller, it will trigger that scene, starting the train slowly and playing somber music.  But wait!  How does it know what OSC messages to send to make the train go a certain speed?  I forgot to tell you about maps, so check this out:
+Now, if you send the command `/scene/football` to the scene controller, it will trigger that scene, setting the TV to channel 72 and giving you dim green lights.  But now you are probably wondering how it knows what OSC messages to send to make the tv go to a channel?  I forgot to tell you about maps, so check this out:
 
 ```
 map:
-  train:
-    start:
-      slow: /train/start 2
-      normal: /train/start 5
-      fast: /train/start 10
+  tv:
+    channel:
+      espn: /tv/channel 76 
+      hgtv: /tv/channel 23
+      history: /tv/channel 57
+      hbo: /tv/channel 12
   music:
-    mood:
-      somber: /music/play "<insert name of somber song here>"
-      happy: /music/play "<insert name of happy song here>"
-      excited: /music/play "<insert name of excited song here>"
+    color:
+      green: /lights/rgb 00FF00
+      orange: /lights/rgb FF8C00
+      yellow: /lights/rgb FFFF00
+      blue: /lights/rgb 0000FF
 ```
 
-The map, well, maps the values used in scenes to actual OSC messages to send.  This means that your scenes can use very meaningful names and be read and created easily, while you keep the cluttered OSC messages in one section.  This has the added benifit of adding a layer of abstraction, so that if the OSC API changed for an endpoint, you only have to update the message in one place.  For example, if your speaker got an update and now you have to send `/music/play_song` instead of `/music/play`, you can just change the command in the map to be `somber: /music/play_song ...` and not have to worry about messing up the scenes.
+The map, well, maps the values used in scenes to actual OSC messages to send.  This means that your scenes can use very meaningful names and be read and created easily, while you keep the cluttered OSC messages in one section.  This has the added benifit of adding a layer of abstraction, so that if the OSC API changed for an endpoint, you only have to update the message in one place.  For example, if your tv got an update and now you have to send `/tv/set_channel` instead of `/tv/channel`, you can just change the commands in the map and not have to worry about messing up the scenes.
 
 You can put this section anywhere you want in your file, I like to put it between the `endpoints` and `scenes` sections.
 
-Now, just save the file as `first_scenes.yml` and load it up! Unless you have a model train and OSC-equipped speaker, this won't actually do anything, but you can still send `/scene/start_slow` and watch what OSC messages are sent out in the log panel.
+Now, just save the file as `first_scenes.yml` and load it up! Unless you have OSC-equipped smart TV and lighting system, this won't actually do anything, but you can still send `/scene/football` and watch what OSC messages are sent out in the log panel.
 
 ### More Advanced Scenes
 
-Alright, so now that you have the basics down, let's improve our setup.  Our train can do more than just start; it can stop with `/train/stop` and blow it's whistle with `/train/whistle`.  We want to make a scene that will stop the music and blow the train's whistle.  Here's our new scene and map:
+Alright, so now that you have the basics down, let's improve our setup.  Our tv can do more than change channels; it can change inputs with `/tv/input <name>` and set the volume with `/tv/volume <level>`.  We want to make a scene that will stop the music and blow the train's whistle.  Here's our new scene and map:
 
 ```
 map:
