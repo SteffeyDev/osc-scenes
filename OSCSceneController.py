@@ -19,17 +19,21 @@ import json
 class UserPreferences:
   def __init__(self):
     self.user_data_dir = appdirs.user_data_dir("OSCSceneController", "SteffeyDev")
+    self.data = {}
 
-    if not os.path.exists(self.user_data_dir):
-      os.makedirs(self.user_data_dir)
+    try:
+      if not os.path.exists(self.user_data_dir):
+        os.makedirs(self.user_data_dir)
 
-    self.preferences_file_path = self.user_data_dir + "/preferences.json"
-    if os.path.exists(self.preferences_file_path):
-      with open(self.preferences_file_path, 'r') as preferencesFile:
-        self.data = json.loads(preferencesFile.read())
-        preferencesFile.close()
-    else:
-      self.data = {}
+      self.preferences_file_path = self.user_data_dir + "/preferences.json"
+      print(self.preferences_file_path)
+      if os.path.exists(self.preferences_file_path):
+        with open(self.preferences_file_path, 'r') as preferencesFile:
+          self.data = json.loads(preferencesFile.read())
+          preferencesFile.close()
+
+    except:
+      pass
 
   def get(self, name):
     if name in self.data:
@@ -38,9 +42,12 @@ class UserPreferences:
 
   def set(self, name, value):
     self.data[name] = value
-    with open(self.preferences_file_path, 'w') as preferencesFile:
-      preferencesFile.write(json.dumps(self.data))
-      preferencesFile.close()
+    try:
+      with open(self.preferences_file_path, 'w') as preferencesFile:
+        preferencesFile.write(json.dumps(self.data))
+        preferencesFile.close()
+    except:
+      pass
 
 debug = False
 
@@ -311,7 +318,10 @@ class OSCSceneController():
 
     # If we are recieving one of the turn off signals that
     # we are sending, ignore it (prevent feedback loop)
-    if args == 0:
+    if args == 0 or args == 0.0:
+      if new_scene != self.last_scene:
+        self.send_msg(OSCMessage("/scene/" + new_scene, [0.0]))
+        self.send_msg(OSCMessage("/scene/" + new_scene, [0]))
       return
 
     # If we are trying to select the same scene, resend confirmation message but don't process again
@@ -342,12 +352,14 @@ class OSCSceneController():
       # If we don't know what the last scene is, turn them all off
       #   except for the current scene
       else:
+        delay = 10
         for key in scene_map:
           if key != new_scene:
-            self.send_msg(OSCMessage("/scene/" + key, 0))
-            self.send_msg(OSCMessage("/scene/" + key, 0.0))
+            self.send_msg(OSCMessage("/scene/" + key, 0, delay=(delay/100)), quiet = True)
+            self.send_msg(OSCMessage("/scene/" + key, 0.0, delay=(delay/100)), quiet = True)
+            delay += 5
           
-      self.last_scene = new_scene
+    self.last_scene = new_scene
 
     # Update GUI
     global active_scene
@@ -358,7 +370,7 @@ class OSCSceneController():
       self.send_msg(osc_command)
 
 
-  def send_msg(self, message, delay_bypass = False):
+  def send_msg(self, message, delay_bypass = False, quiet = False):
     if message.delay == 0 or delay_bypass:
       if message.prefix == "scene":
         if self.output_client is not None:
@@ -367,13 +379,15 @@ class OSCSceneController():
         self.parser.getUdpClients()[message.prefix].send_message(message.address, message.arguments)
       else:
         log_data.append("Prefix not recognized: {0}".format(message.prefix))
-      print("Sending message:", message.address, message.arguments)
-      log_data.append("Sending \"" + message.address + " " + " ".join([str(s) for s in message.arguments]) + "\" to " + self.parser.getUdpClientStrings()[message.prefix])
+      if not quiet:
+        print("Sending message:", message.address, message.arguments)
+        log_data.append("Sending \"" + message.address + " " + " ".join([str(s) for s in message.arguments]) + "\" to " + self.parser.getUdpClientStrings()[message.prefix])
 
     else:
       wait = message.delay
-      log_data.append("Scheduling \"{0}\" to be sent after {1} seconds".format(message.address, message.delay))
-      r = Timer(wait, self.send_msg, [message, True])  
+      if not quiet:
+        log_data.append("Scheduling \"{0}\" to be sent after {1} seconds".format(message.address, message.delay))
+      r = Timer(wait, self.send_msg, [message, True, quiet])  
       r.start()
 
   def setOutputAddress(self, ip, port):
