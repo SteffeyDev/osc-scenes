@@ -15,6 +15,9 @@ import signal
 import itertools
 import appdirs
 import json
+import argparse
+import datetime
+import time
 
 class UserPreferences:
   def __init__(self):
@@ -330,7 +333,6 @@ class OSCSceneController():
         self.send_msg(OSCMessage("/scene/" + new_scene + " 1"))
       return
 
-    print("\nGot Message: ", addr, " ", args)
     log_data.append("")
     log_data.append("Received: " + addr + " " + str(args))
 
@@ -380,7 +382,6 @@ class OSCSceneController():
       else:
         log_data.append("Prefix not recognized: {0}".format(message.prefix))
       if not quiet:
-        print("Sending message:", message.address, message.arguments)
         log_data.append("Sending \"" + message.address + " " + " ".join([str(s) for s in message.arguments]) + "\" to " + self.parser.getUdpClientStrings()[message.prefix])
 
     else:
@@ -701,14 +702,74 @@ class GracefulKiller:
   def macos_quit(self):
     self.app.destroy()
 
+class CommandLineApp:
+  def __init__(self, args):
+
+    if args.scenes is None:
+      print("Fatal Error: The --scenes argument is required")
+      sys.exit(1)
+      
+    parser = SceneParser()
+    parser.parseFromFile(args.scenes)
+    self.controller = OSCSceneController(parser)
+    self.input_port = args.input_port
+
+    # Load data from preferences file
+    if args.output_address is not None:
+      try:
+        output_ip_address = args.output_address.split(':')[0]
+        output_port = int(args.output_address.split(':')[1])
+        self.controller.setOutputAddress(output_ip_address, output_port)
+        self.log("Output port set, sending to {0}:{1}".format(output_ip_address, output_port))
+      except:
+        print("Fatal Error: Make sure the --output-address argument is in the same format as '192.168.1.1:9000'")
+        sys.exit(1)
+
+    self.log("Successfully loaded configuration from file: {0}".format(args.scenes))
+
+  def run(self):
+    port = self.input_port if args.input_port is not None else 8000
+    self.log("Starting OSC Server on port {}".format(port))
+    self.controller.start(port)
+
+  def stop(self):
+    self.log("Stopping OSC Server")
+    self.controller.stop()
+
+  def log(self, text):
+    print("{} - {}".format(datetime.datetime.now(), text))
+
 if __name__ == "__main__":
-  app = MyApp()
-  killer = GracefulKiller(app)
 
-  # Handle MacOS quit event
-  if (sys.platform == "darwin"):
-    app.createcommand('::tk::mac::Quit', killer.macos_quit)
+  parser = argparse.ArgumentParser(description='Route OSC packets corresponding to scenes')
+  parser.add_argument('--no-gui', action='store_true', help="Run the scene controller purely from the command line")
+  parser.add_argument("-s", "--scenes", help="Path to scenes.yaml", metavar="FILE")
+  parser.add_argument("-i", "--input-port", metavar='N', type=int, help="Port for OSC server to listen on (Default 8000)")
+  parser.add_argument("-o", "--output-address", help="IP address and port to send feedback traffic to")
+  args = parser.parse_args()
 
-  app.title("OSC Scene Controller")
-  app.mainloop()
-  app.stop()
+  if args.no_gui:
+    app = CommandLineApp(args)
+    app.run()
+    interrupt = False
+    while not interrupt:
+      try:
+        time.sleep(1)
+        if len(log_data) > 0:
+          [ app.log(text.strip()) for text in log_data if len(text) > 0 ]
+          log_data = []
+      except KeyboardInterrupt:
+        interrupt = True
+    app.stop()
+
+  else:
+    app = MyApp()
+    killer = GracefulKiller(app)
+
+    # Handle MacOS quit event
+    if (sys.platform == "darwin"):
+      app.createcommand('::tk::mac::Quit', killer.macos_quit)
+
+    app.title("OSC Scene Controller")
+    app.mainloop()
+    app.stop()

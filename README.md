@@ -20,7 +20,7 @@ OSC messages contain 2 parts:
  - multiple values can be sent in each message, and each value should be separated by a space.
 
 
-## Download
+## Download & Run
 
 ### MacOS
 
@@ -38,7 +38,9 @@ OSC messages contain 2 parts:
 
 1. Download the `OSCSceneController.elf` file from the [latest release](https://github.com/steffeydev/osc-scenes/releases/latest).
 2. Create the YAML Configuration File by following the format described below.
-3. From the command line, `cd` into the folder with the executable and run `./OSCSceneController.elf`.
+3. From the command line, `cd` into the folder with the executable.
+  * To show in a GUI, run `./OSCSceneController.elf`.
+  * To run as a command-line program, run `./OSCSceneController.elf --no-gui --scenes /path/to/scenes.yaml`, with optional arguments `--input-port` and `--output-address`.
 
 Note: The executable was built for debian-based 64-bit systems.  If it doesn't work on your system, follow the Contributing guide below to setup the environment and build it manually.
 
