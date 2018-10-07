@@ -10,7 +10,7 @@ if (platform.system() == "Windows"):
   os.system('pyinstaller --onefile -w -i app_icon.ico --add-data app_icon.ico:app_icon.ico OSCSceneController.py')
 
 elif (platform.system() == "Linux"):
-  os.system('pyinstaller --onefile -w -i app_icon.ico --add-data app_icon.icoOSCSceneController.py')
+  os.system('pyinstaller --onefile -w -i app_icon.ico --add-data app_icon.ico:app_icon.ico OSCSceneController.py')
 
 
 elif (platform.system() == "Darwin"): # MacOS
